@@ -112,6 +112,43 @@ export async function createWorkspace(data: { name: string, ownerId: string }) {
     }
 }
 
+export async function getChannels(workspaceId: string) {
+    try {
+        const channels = await prisma.channel.findMany({
+            where: { workspaceId }
+        });
+        return channels;
+    } catch (error) {
+        return [];
+    }
+}
+
+export async function getMessages(channelId: string) {
+    try {
+        const messages = await prisma.message.findMany({
+            where: { channelId },
+            include: { user: true },
+            orderBy: { createdAt: 'asc' }
+        });
+        return messages;
+    } catch (error) {
+        return [];
+    }
+}
+
+export async function sendMessage(channelId: string, userId: string, content: string) {
+    try {
+        const message = await prisma.message.create({
+            data: { channelId, userId, content },
+            include: { user: true }
+        });
+        revalidatePath("/dashboard/chat");
+        return { success: true, message };
+    } catch (error) {
+        return { success: false, error: "Failed to send message" };
+    }
+}
+
 export async function getMockUser() {
     try {
         const user = await prisma.user.findUnique({
