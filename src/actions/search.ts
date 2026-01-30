@@ -1,7 +1,7 @@
 "use server";
 
 import { prisma } from "@/lib/prisma";
-import { Task, Document, File } from "@prisma/client";
+import { Task, Document as PrismaDocument, File as PrismaFile } from "@prisma/client";
 
 export async function globalSearch(workspaceId: string, query: string) {
     if (!query || query.length < 2) return { success: true, results: [] };
@@ -39,8 +39,8 @@ export async function globalSearch(workspaceId: string, query: string) {
 
         const results = [
             ...tasks.map((t: Task) => ({ ...t, category: 'Task', href: '/dashboard/tasks' })),
-            ...docs.map((d: Document) => ({ ...d, category: 'Doc', href: '/dashboard/docs', name: d.title })),
-            ...files.map((f: File) => ({ ...f, category: 'File', href: '/dashboard/files' }))
+            ...docs.map((d: PrismaDocument) => ({ ...d, category: 'Doc', href: '/dashboard/docs', name: d.title })),
+            ...files.map((f: PrismaFile) => ({ ...f, category: 'File', href: '/dashboard/files' }))
         ];
 
         return { success: true, results };
