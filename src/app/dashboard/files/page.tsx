@@ -28,13 +28,13 @@ import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { getFiles, createFile, deleteFile } from "@/actions/files";
 import { getFirstWorkspace } from "@/actions/workspaces";
-import { toast } from "sonner"; // Assuming sonner is available or will be
+import { toast } from "sonner";
+import { cn } from "@/lib/utils";
 
 const mockDrives = [
-    { name: "Local Files", status: "Primary", icon: "LF", color: "text-primary" },
-    { name: "Google Drive", status: "Connected", icon: "GD", color: "text-blue-400" },
-    { name: "Dropbox", status: "Connected", icon: "DB", color: "text-blue-500" },
-    { name: "Amazon S3", status: "Demo Mode", icon: "S3", color: "text-orange-500" },
+    { name: "Local Frequencies", status: "Primary", icon: "LF", color: "text-primary" },
+    { name: "Neural Cloud", status: "Linked", icon: "NC", color: "text-blue-400" },
+    { name: "S3 Node", status: "Staging", icon: "S3", color: "text-orange-500" },
 ];
 
 export default function FilesPage() {
@@ -63,8 +63,7 @@ export default function FilesPage() {
         if (!workspace) return;
         setIsUploading(true);
 
-        // Random file simulation
-        const names = ["Marketing_Deck_v2.pdf", "Main_Logo.png", "Financials_Draft.xlsx", "Meeting_Notes.docx"];
+        const names = ["MISSION_PARAM_V2.pdf", "BASE_ASSET_L1.png", "NEURAL_SYNC_DATA.xlsx", "CORE_LOGIC_OPS.docx"];
         const types = ["pdf", "image", "excel", "doc"];
         const randIdx = Math.floor(Math.random() * names.length);
 
@@ -78,6 +77,7 @@ export default function FilesPage() {
 
         if (result.success) {
             setFiles([result.file, ...files]);
+            toast.success("Binary stream synchronized.");
         }
         setIsUploading(false);
     };
@@ -86,6 +86,7 @@ export default function FilesPage() {
         const result = await deleteFile(id);
         if (result.success) {
             setFiles(files.filter(f => f.id !== id));
+            toast.success("Node purged from universe.");
         }
     };
 
@@ -104,59 +105,59 @@ export default function FilesPage() {
     };
 
     return (
-        <div className="space-y-8 animate-in fade-in duration-500">
-            {/* Header */}
-            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-                <div>
-                    <h1 className="text-3xl font-black tracking-tighter uppercase italic text-white">File <span className="text-primary italic">Hub</span></h1>
-                    <p className="text-muted-foreground font-medium">Manage assets across your connected universes.</p>
+        <div className="space-y-12 animate-in fade-in slide-in-from-bottom-8 duration-700 pb-20">
+            {/* Neural Header */}
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-10">
+                <div className="space-y-4">
+                    <h1 className="text-6xl font-black tracking-tighter uppercase italic text-white underline decoration-primary/50 decoration-4 underline-offset-8">File <span className="text-primary italic animate-neon">Archive</span></h1>
+                    <p className="text-xl font-medium text-muted-foreground italic">Managing binary assets across synchronized data nodes.</p>
                 </div>
-                <div className="flex items-center gap-3">
-                    <div className="relative group">
-                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground transition-colors group-focus-within:text-primary" />
+                <div className="flex items-center gap-6">
+                    <div className="relative group hidden lg:block">
+                        <Search className="absolute left-5 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground group-focus-within:text-primary transition-colors" />
                         <input
-                            placeholder="Search assets..."
-                            className="bg-white/5 border border-white/5 rounded-xl py-2 pl-10 pr-4 text-sm focus:outline-none focus:border-primary/50 w-64 transition-all"
+                            placeholder="SEARCH BINARIES..."
+                            className="bg-white/5 border border-white/5 rounded-[28px] py-4 pl-14 pr-8 text-sm italic font-bold focus:outline-none focus:border-primary/50 transition-all w-72 shadow-2xl"
                         />
                     </div>
                     <Button
                         onClick={handleSimulateUpload}
                         disabled={isUploading}
-                        className="bg-primary text-black hover:bg-primary/90 h-11 px-6 rounded-xl font-black shadow-[0_0_15px_rgba(0,212,170,0.3)] transition-all active:scale-95"
+                        className="bg-primary text-black hover:bg-primary/90 h-16 px-10 rounded-[32px] font-black italic tracking-tighter text-xl shadow-[0_0_20px_rgba(0,212,170,0.3)] transition-all uppercase group"
                     >
-                        {isUploading ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Upload className="w-4 h-4 mr-2" />}
-                        {isUploading ? "Uploading..." : "Upload File"}
+                        {isUploading ? <Loader2 className="w-6 h-6 animate-spin" /> : <Upload className="w-6 h-6 mr-3 group-hover:-translate-y-1 transition-transform" />}
+                        {isUploading ? "Streaming..." : "Upload Node"}
                     </Button>
                 </div>
             </div>
 
-            <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
-                {/* Left Sidebar */}
-                <div className="space-y-6">
-                    <Card className="glass border-white/5 rounded-[32px] overflow-hidden p-6 relative">
-                        <div className="absolute top-0 right-0 w-24 h-24 bg-primary/10 blur-3xl -mr-12 -mt-12" />
-                        <h3 className="font-black text-[10px] uppercase tracking-[0.2em] text-muted-foreground mb-4 flex items-center gap-2">
-                            Storage Usage
+            <div className="grid grid-cols-1 lg:grid-cols-4 gap-12">
+                {/* Neural Sidebar */}
+                <div className="space-y-10">
+                    <Card className="glass border-white/5 rounded-[48px] overflow-hidden p-10 relative group">
+                        <div className="absolute top-0 right-0 w-32 h-32 bg-primary/10 blur-3xl -mr-16 -mt-16 group-hover:bg-primary/20 transition-colors" />
+                        <h3 className="font-black text-[12px] uppercase tracking-[0.3em] text-muted-foreground mb-8 flex items-center gap-2 italic">
+                            Universe Capacity
                         </h3>
-                        <div className="space-y-4 relative">
-                            <Progress value={20} className="h-2 bg-white/5" />
-                            <div className="flex justify-between text-[11px] font-bold">
+                        <div className="space-y-6 relative">
+                            <Progress value={20} className="h-4 bg-white/5 rounded-full overflow-hidden" />
+                            <div className="flex justify-between text-[11px] font-black uppercase tracking-widest italic">
                                 <span className="text-muted-foreground">Used: 2.1 GB</span>
                                 <span className="text-primary">Limit: 10 GB</span>
                             </div>
-                            <Button variant="outline" className="w-full text-xs h-10 border-primary/20 bg-primary/5 text-primary hover:bg-primary hover:text-black rounded-xl transition-all font-black">Upgrade Storage</Button>
+                            <Button variant="outline" className="w-full text-xs h-12 border-primary/20 bg-primary/5 text-primary hover:bg-primary hover:text-black rounded-2xl transition-all font-black uppercase italic tracking-widest">Expansion Protocol</Button>
                         </div>
                     </Card>
 
-                    <div className="space-y-2">
-                        <h3 className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground mb-4 px-2">Connected Drives</h3>
-                        <div className="space-y-2">
+                    <div className="space-y-4">
+                        <h3 className="text-[10px] font-black uppercase tracking-[0.4em] text-muted-foreground mb-6 px-4 italic opacity-50">Authorized Hubs</h3>
+                        <div className="space-y-3">
                             {mockDrives.map(drive => (
-                                <button key={drive.name} className="w-full group flex items-center gap-4 p-4 rounded-2xl hover:bg-white/5 transition-all text-left border border-white/5 group relative overflow-hidden">
-                                    <div className={`w-10 h-10 rounded-xl bg-white/5 flex items-center justify-center font-black text-xs ${drive.color} group-hover:bg-white/10 transition-colors shadow-lg`}>{drive.icon}</div>
+                                <button key={drive.name} className="w-full group flex items-center gap-4 p-5 rounded-[28px] hover:bg-white/5 transition-all text-left border border-transparent hover:border-white/5 group relative overflow-hidden">
+                                    <div className={cn("w-12 h-12 rounded-2xl bg-white/5 flex items-center justify-center font-black text-xs shadow-lg group-hover:scale-110 transition-transform", drive.color)}>{drive.icon}</div>
                                     <div className="flex-1">
-                                        <p className="text-sm font-black">{drive.name}</p>
-                                        <p className="text-[10px] text-muted-foreground font-medium uppercase tracking-tighter opacity-70">{drive.status}</p>
+                                        <p className="text-sm font-black italic tracking-tighter text-white">{drive.name}</p>
+                                        <p className="text-[10px] text-muted-foreground font-black uppercase tracking-widest opacity-50 mt-1">{drive.status}</p>
                                     </div>
                                     <ChevronRight className="w-4 h-4 text-muted-foreground group-hover:text-primary transition-colors" />
                                 </button>
@@ -165,74 +166,75 @@ export default function FilesPage() {
                     </div>
                 </div>
 
-                {/* Main View */}
-                <div className="lg:col-span-3 space-y-6">
+                {/* Data View */}
+                <div className="lg:col-span-3 space-y-10">
                     <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-8">
-                            <button className="text-primary text-sm font-black italic tracking-tighter border-b-2 border-primary pb-1">All Assets</button>
-                            <button className="text-muted-foreground text-sm font-bold hover:text-white transition-colors pb-1">Recent</button>
-                            <button className="text-muted-foreground text-sm font-bold hover:text-white transition-colors pb-1">Shared</button>
+                        <div className="flex items-center gap-10">
+                            <button className="text-primary text-sm font-black italic tracking-tighter border-b-4 border-primary pb-2 uppercase">All Nodes</button>
+                            <button className="text-muted-foreground text-sm font-black italic tracking-tighter hover:text-white transition-colors pb-2 uppercase opacity-40">Recent</button>
+                            <button className="text-muted-foreground text-sm font-black italic tracking-tighter hover:text-white transition-colors pb-2 uppercase opacity-40">Synced</button>
                         </div>
-                        <div className="flex items-center gap-1 bg-white/5 rounded-2xl p-1.5 border border-white/5">
+                        <div className="flex items-center gap-2 bg-white/5 rounded-[24px] p-2 border border-white/5 shadow-2xl">
                             <Button
                                 variant="ghost"
                                 size="icon"
-                                className={`h-8 w-8 rounded-xl ${viewMode === 'grid' ? 'bg-primary text-black' : 'text-muted-foreground hover:bg-white/5'}`}
+                                className={cn("h-10 w-10 rounded-xl transition-all", viewMode === 'grid' ? 'bg-primary text-black shadow-lg shadow-primary/20' : 'text-muted-foreground hover:bg-white/10')}
                                 onClick={() => setViewMode('grid')}
                             >
-                                <Grid className="w-4 h-4" />
+                                <Grid className="w-5 h-5" />
                             </Button>
                             <Button
                                 variant="ghost"
                                 size="icon"
-                                className={`h-8 w-8 rounded-xl ${viewMode === 'list' ? 'bg-primary text-black' : 'text-muted-foreground hover:bg-white/5'}`}
+                                className={cn("h-10 w-10 rounded-xl transition-all", viewMode === 'list' ? 'bg-primary text-black shadow-lg shadow-primary/20' : 'text-muted-foreground hover:bg-white/10')}
                                 onClick={() => setViewMode('list')}
                             >
-                                <List className="w-4 h-4" />
+                                <List className="w-5 h-5" />
                             </Button>
                         </div>
                     </div>
 
                     {files.length === 0 ? (
-                        <div className="h-[40vh] glass rounded-[40px] flex flex-col items-center justify-center text-center p-8 border-dashed border-white/10">
-                            <div className="w-20 h-20 rounded-[32px] bg-white/5 flex items-center justify-center mb-6">
-                                <Folder className="w-10 h-10 opacity-20" />
+                        <div className="h-[50vh] glass rounded-[60px] flex flex-col items-center justify-center text-center p-10 border-dashed border-white/10 shadow-inner">
+                            <div className="w-24 h-24 rounded-[40px] bg-white/5 flex items-center justify-center mb-8 border border-white/5">
+                                <Folder className="w-12 h-12 opacity-10" />
                             </div>
-                            <h3 className="text-2xl font-black italic tracking-tighter mb-2">No files here yet</h3>
-                            <p className="text-muted-foreground max-w-xs mx-auto font-medium">Upload your first asset or connect a cloud drive to get started.</p>
+                            <h3 className="text-4xl font-black italic tracking-tighter uppercase text-white/50">Universe Void</h3>
+                            <p className="text-muted-foreground max-w-sm mx-auto font-medium italic mt-4 opacity-40 text-lg">Initialize a binary stream or link a neural frequency to begin asset synchronization.</p>
                         </div>
                     ) : (
                         <>
                             {viewMode === 'grid' ? (
-                                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+                                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
                                     {files.map(file => (
-                                        <Card key={file.id} className="glass border-white/5 hover:border-primary/40 transition-all group rounded-[32px] overflow-hidden cursor-default relative">
-                                            <div className="absolute top-0 right-0 p-4 opacity-0 group-hover:opacity-100 transition-opacity">
+                                        <Card key={file.id} className="glass border-white/5 hover:border-primary/40 transition-all group rounded-[40px] overflow-hidden cursor-default relative p-1 shadow-2xl">
+                                            <div className="absolute top-4 right-4 opacity-0 group-hover:opacity-100 transition-all z-20">
                                                 <Button
                                                     variant="ghost"
                                                     size="icon"
                                                     onClick={() => handleDelete(file.id)}
-                                                    className="h-9 w-9 rounded-xl hover:bg-red-500/20 hover:text-red-400"
+                                                    className="h-10 w-10 rounded-xl hover:bg-red-500/20 hover:text-red-400 group-hover:scale-110 transition-transform"
                                                 >
                                                     <Trash2 className="w-4 h-4" />
                                                 </Button>
                                             </div>
-                                            <CardContent className="p-8">
-                                                <div className="w-16 h-16 rounded-[24px] bg-white/5 flex items-center justify-center text-primary group-hover:scale-110 transition-transform mb-6 shadow-xl border border-white/5">
-                                                    {getFileIcon(file.type)}
+                                            <CardContent className="p-10 pt-12">
+                                                <div className="w-20 h-20 rounded-[32px] bg-white/5 flex items-center justify-center text-primary group-hover:scale-110 group-hover:bg-primary group-hover:text-black transition-all mb-8 shadow-2xl border border-white/5 relative overflow-hidden">
+                                                    <div className="absolute inset-0 bg-primary/5 blur-xl group-hover:hidden" />
+                                                    {getFileIcon(file.type, "w-10 h-10 relative z-10")}
                                                 </div>
-                                                <h3 className="font-black text-lg truncate mb-1 pr-8">{file.name}</h3>
-                                                <div className="flex items-center gap-3 text-[10px] font-black uppercase tracking-widest text-muted-foreground opacity-60">
+                                                <h3 className="font-black text-2xl italic tracking-tighter truncate mb-2 pr-10 text-white group-hover:text-primary transition-colors">{file.name}</h3>
+                                                <div className="flex items-center gap-4 text-[10px] font-black uppercase tracking-widest text-muted-foreground opacity-50 italic">
                                                     <span>{formatSize(file.size)}</span>
-                                                    <div className="w-1 h-1 rounded-full bg-white/20" />
-                                                    <span className="flex items-center gap-1"><Cloud className="w-3 h-3" /> {file.drive}</span>
+                                                    <div className="w-1.5 h-1.5 rounded-full bg-primary/40" />
+                                                    <span className="flex items-center gap-1.5"><Cloud className="w-4 h-4" /> {file.drive}</span>
                                                 </div>
                                             </CardContent>
-                                            <div className="px-8 py-5 bg-white/[0.03] border-t border-white/5 flex items-center justify-between translate-y-2 opacity-0 group-hover:translate-y-0 group-hover:opacity-100 transition-all duration-300">
-                                                <Button variant="ghost" size="sm" className="h-9 px-4 text-primary hover:bg-primary/10 rounded-xl font-black text-xs">
-                                                    <Download className="w-4 h-4 mr-2" /> OPEN
+                                            <div className="px-10 py-6 bg-white/[0.04] border-t border-white/5 flex items-center justify-between translate-y-4 opacity-0 group-hover:translate-y-0 group-hover:opacity-100 transition-all duration-500">
+                                                <Button variant="ghost" size="sm" className="h-10 px-8 text-primary hover:bg-primary/10 rounded-xl font-black italic tracking-tighter text-xs uppercase transition-transform active:scale-90">
+                                                    <Download className="w-4 h-4 mr-2" /> Open Node
                                                 </Button>
-                                                <Button variant="ghost" size="icon" className="h-9 w-9 text-muted-foreground hover:bg-white/10 rounded-xl">
+                                                <Button variant="ghost" size="icon" className="h-10 w-10 text-muted-foreground hover:bg-white/10 rounded-xl transition-transform active:scale-90">
                                                     <Share2 className="w-4 h-4" />
                                                 </Button>
                                             </div>
@@ -240,43 +242,43 @@ export default function FilesPage() {
                                     ))}
                                 </div>
                             ) : (
-                                <Card className="glass border-white/5 rounded-[32px] overflow-hidden">
+                                <Card className="glass border-white/5 rounded-[48px] overflow-hidden shadow-2xl">
                                     <table className="w-full text-left">
                                         <thead>
                                             <tr className="border-b border-white/5 bg-white/[0.02]">
-                                                <th className="p-6 text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground">Name</th>
-                                                <th className="p-6 text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground">Location</th>
-                                                <th className="p-6 text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground">Size</th>
-                                                <th className="p-6 text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground">Created</th>
-                                                <th className="p-6"></th>
+                                                <th className="p-8 text-[12px] font-black italic tracking-[0.3em] text-muted-foreground uppercase">Asset Identifier</th>
+                                                <th className="p-8 text-[12px] font-black italic tracking-[0.3em] text-muted-foreground uppercase">Source Hub</th>
+                                                <th className="p-8 text-[12px] font-black italic tracking-[0.3em] text-muted-foreground uppercase">Capacity</th>
+                                                <th className="p-8 text-[12px] font-black italic tracking-[0.3em] text-muted-foreground uppercase">Synced</th>
+                                                <th className="p-8"></th>
                                             </tr>
                                         </thead>
                                         <tbody className="divide-y divide-white/5">
                                             {files.map(file => (
-                                                <tr key={file.id} className="hover:bg-white/[0.03] transition-colors group">
-                                                    <td className="p-6">
-                                                        <div className="flex items-center gap-4">
-                                                            <div className="w-10 h-10 rounded-xl bg-white/5 flex items-center justify-center text-primary group-hover:bg-primary/10 transition-colors">{getFileIcon(file.type, "w-5 h-5")}</div>
-                                                            <span className="text-sm font-black">{file.name}</span>
+                                                <tr key={file.id} className="hover:bg-white/[0.03] transition-all group">
+                                                    <td className="p-8">
+                                                        <div className="flex items-center gap-6">
+                                                            <div className="w-12 h-12 rounded-[18px] bg-white/5 flex items-center justify-center text-primary group-hover:bg-primary group-hover:text-black transition-all shadow-xl">{getFileIcon(file.type, "w-6 h-6")}</div>
+                                                            <span className="text-xl font-black italic tracking-tighter text-white group-hover:text-primary transition-colors">{file.name}</span>
                                                         </div>
                                                     </td>
-                                                    <td className="p-6">
-                                                        <Badge variant="outline" className="bg-white/5 border-white/5 text-[10px] uppercase font-bold text-muted-foreground">{file.drive}</Badge>
+                                                    <td className="p-8">
+                                                        <Badge variant="outline" className="bg-white/5 border-primary/20 text-primary text-[10px] uppercase font-black italic tracking-widest px-4 py-2 rounded-xl">{file.drive}</Badge>
                                                     </td>
-                                                    <td className="p-6 text-sm font-medium text-muted-foreground">{formatSize(file.size)}</td>
-                                                    <td className="p-6 text-sm font-medium text-muted-foreground">{new Date(file.createdAt).toLocaleDateString()}</td>
-                                                    <td className="p-6 text-right">
-                                                        <div className="flex items-center justify-end gap-2">
-                                                            <Button variant="ghost" size="icon" className="h-9 w-9 rounded-xl text-muted-foreground hover:text-white transition-colors">
-                                                                <Download className="w-4 h-4" />
+                                                    <td className="p-8 text-sm font-black italic text-muted-foreground uppercase tracking-widest opacity-60">{formatSize(file.size)}</td>
+                                                    <td className="p-8 text-sm font-black italic text-muted-foreground uppercase tracking-widest opacity-40">{new Date(file.createdAt).toLocaleDateString([], { month: 'short', day: 'numeric', year: 'numeric' })}</td>
+                                                    <td className="p-8 text-right">
+                                                        <div className="flex items-center justify-end gap-3 opacity-0 group-hover:opacity-100 transition-all">
+                                                            <Button variant="ghost" size="icon" className="h-12 w-12 rounded-xl text-muted-foreground hover:text-white transition-all shadow-xl hover:bg-white/5">
+                                                                <Download className="w-5 h-5" />
                                                             </Button>
                                                             <Button
                                                                 variant="ghost"
                                                                 size="icon"
                                                                 onClick={() => handleDelete(file.id)}
-                                                                className="h-9 w-9 rounded-xl text-muted-foreground hover:text-red-400 transition-colors"
+                                                                className="h-12 w-12 rounded-xl text-muted-foreground hover:text-red-400 transition-all shadow-xl hover:bg-white/5"
                                                             >
-                                                                <Trash2 className="w-4 h-4" />
+                                                                <Trash2 className="w-5 h-5" />
                                                             </Button>
                                                         </div>
                                                     </td>

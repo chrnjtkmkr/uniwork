@@ -49,12 +49,12 @@ interface SidebarItem {
 
 const sidebarItems: SidebarItem[] = [
     { name: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
-    { name: "Tasks", href: "/dashboard/tasks", icon: CheckSquare },
-    { name: "Notes", href: "/dashboard/docs", icon: FileText },
-    { name: "Team", href: "/dashboard/team", icon: Users },
-    { name: "Files", href: "/dashboard/files", icon: FolderOpen },
-    { name: "Chat", href: "/dashboard/chat", icon: MessageSquare },
-    { name: "Calendar", href: "/dashboard/calendar", icon: Calendar },
+    { name: "Neural Board", href: "/dashboard/tasks", icon: CheckSquare },
+    { name: "Liquid Notes", href: "/dashboard/docs", icon: FileText },
+    { name: "Team Nexus", href: "/dashboard/team", icon: Users },
+    { name: "File Archive", href: "/dashboard/files", icon: FolderOpen },
+    { name: "Neural Hub", href: "/dashboard/chat", icon: MessageSquare },
+    { name: "Chronos", href: "/dashboard/calendar", icon: Calendar },
     { divider: true },
     { name: "Analytics", href: "/dashboard/analytics", icon: BarChart3 },
     { name: "Integrations", href: "/dashboard/integrations", icon: Plug },

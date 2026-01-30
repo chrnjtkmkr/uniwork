@@ -1,15 +1,25 @@
 import type { Metadata } from "next";
-import { Inter } from "next/font/google";
+import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { ThemeProvider } from "@/components/theme-provider";
 import { ClerkWrapper } from "@/components/clerk-wrapper";
 
-const inter = Inter({ subsets: ["latin"] });
+const geistSans = Geist({
+  variable: "--font-geist-sans",
+  subsets: ["latin"],
+});
+
+const geistMono = Geist_Mono({
+  variable: "--font-geist-mono",
+  subsets: ["latin"],
+});
 
 export const metadata: Metadata = {
-  title: "UniWork | Universal Productivity & Collaboration Platform",
-  description: "One place for everything you work on. Manage tasks, docs, files, and teams with AI-powered insights.",
+  title: "UniWork | Neural Task OS",
+  description: "High-performance synchronization for modern universes.",
 };
+
+import { Toaster } from "sonner";
 
 export default function RootLayout({
   children,
@@ -19,13 +29,9 @@ export default function RootLayout({
   const publishableKey = process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY;
   const isDemoMode = !publishableKey || publishableKey === "" || publishableKey.includes("test_");
 
-  if (isDemoMode) {
-    console.log("🚀 RUNNING IN OFFLINE DEMO MODE - Clerk Disabled");
-  }
-
   return (
-    <html lang="en" suppressHydrationWarning className="dark">
-      <body className={`${inter.className} bg-[#0A0A0A] text-foreground antialiased selection:bg-primary/20 selection:text-primary`}>
+    <html lang="en" suppressHydrationWarning className="dark selection:bg-primary/20 selection:text-primary">
+      <body className={`${geistSans.variable} ${geistMono.variable} bg-black font-sans antialiased`}>
         <ThemeProvider
           attribute="class"
           defaultTheme="dark"
@@ -33,6 +39,7 @@ export default function RootLayout({
           disableTransitionOnChange
         >
           {isDemoMode ? children : <ClerkWrapper>{children}</ClerkWrapper>}
+          <Toaster position="bottom-right" theme="dark" richColors />
         </ThemeProvider>
       </body>
     </html>

@@ -4,263 +4,186 @@ import React, { useState, useEffect, useRef } from "react";
 import {
     Sparkles,
     Send,
-    FileText,
-    CheckSquare,
+    Loader2,
     MessageSquare,
     Zap,
-    Plus,
+    Cpu,
+    Target,
+    Activity,
+    BrainCircuit,
+    ChevronRight,
+    Search,
+    UserCircle,
     Bot,
-    Lightbulb,
-    History,
-    Trash2,
-    Loader2,
-    ArrowRight
+    Terminal,
+    Eye,
+    ZapOff,
+    Fingerprint
 } from "lucide-react";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { generateAIResponse } from "@/actions/ai";
+import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
-import { getMessages, sendMessage } from "@/actions/chat";
-import { getFirstWorkspace, getMockUser } from "@/actions/workspaces";
 
-const suggestions = [
-    { title: "Summarize this week", desc: "Get a breakdown of your team's progress", icon: FileText },
-    { title: "Generate task list", desc: "Convert our chat notes into actionable tasks", icon: CheckSquare },
-    { title: "Analyze friction", desc: "Find bottlenecks in current project timeline", icon: Zap },
-    { title: "Draft report", desc: "Create a draft for the upcoming investor update", icon: MessageSquare },
-];
+import ReactMarkdown from 'react-markdown';
 
-export default function AIPage() {
-    const [query, setQuery] = useState("");
-    const [messages, setMessages] = useState<any[]>([]);
-    const [loading, setLoading] = useState(true);
-    const [sending, setSending] = useState(false);
-    const [dbUser, setDbUser] = useState<any>(null);
+export default function AIAssistantPage() {
+    const [messages, setMessages] = useState<any[]>([
+        { role: 'assistant', content: "### [NEURAL_INIT_PROTOCOL_ACTIVE]\n\nSearching for authorized frequencies... Link established.\n\nI am **UNIBOT-4.2**, your neural synchronization partner. All logic nodes are currently operating at 98.4% efficiency. How shall we expand the universe today?" }
+    ]);
+    const [input, setInput] = useState("");
+    const [loading, setLoading] = useState(false);
     const scrollRef = useRef<HTMLDivElement>(null);
 
-    const channelId = "ai-assistant-v1";
-
     useEffect(() => {
-        async function init() {
-            const me = await getMockUser();
-            setDbUser(me);
-            const result = await getMessages(channelId);
-            if (result.success) {
-                setMessages(result.messages || []);
-            }
-            setLoading(false);
-        }
-        init();
-    }, []);
-
-    useEffect(() => {
-        if (scrollRef.current) {
-            scrollRef.current.scrollIntoView({ behavior: "smooth" });
-        }
+        scrollRef.current?.scrollIntoView({ behavior: 'smooth' });
     }, [messages]);
 
-    const handleSend = async (text = query) => {
-        if (!text.trim() || !dbUser) return;
-        setSending(true);
-        setQuery("");
+    const handleSend = async () => {
+        if (!input.trim() || loading) return;
 
-        // 1. Send User Message
-        const userRes = await sendMessage({
-            content: text.trim(),
-            userId: dbUser.id,
-            channelId,
-            type: "user"
-        });
+        const userMsg = { role: 'user', content: input };
+        setMessages(prev => [...prev, userMsg]);
+        setInput("");
+        setLoading(true);
 
-        if (userRes.success) {
-            setMessages(prev => [...prev, userRes.message]);
+        const res = await generateAIResponse(input);
 
-            // 2. Simulate AI Analysis Delay
-            setTimeout(async () => {
-                // Determine simulated response based on keywords
-                let aiContent = "I've analyzed your request. Based on current workspace metrics, productivity is up 12% this week. Would you like me to draft a summary?";
-                if (text.toLowerCase().includes("task")) aiContent = "I see your task list is growing. There are currently 8 high-priority items that haven't been touched in 48 hours. Should I re-prioritize them?";
-                if (text.toLowerCase().includes("doc")) aiContent = "I've indexed 3 new documents related to the project. Would you like a bullet-point summary of the core changes?";
-
-                const aiRes = await sendMessage({
-                    content: aiContent,
-                    userId: dbUser.id, // Using the same user for simplicity in demo or a system user ID if exists
-                    channelId,
-                    type: "ai"
-                });
-
-                if (aiRes.success) {
-                    setMessages(prev => [...prev, aiRes.message]);
-                }
-                setSending(false);
-            }, 1500);
+        if (res.success) {
+            setMessages(prev => [...prev, { role: 'assistant', content: res.message }]);
         } else {
-            setSending(false);
+            setMessages(prev => [...prev, { role: 'assistant', content: "### [CONNECTION_ERROR_NODE_FAILED]\n\nFrequency lost during transmission. Please initialize neural burst manually." }]);
         }
+        setLoading(false);
     };
 
-    if (loading) {
-        return (
-            <div className="flex items-center justify-center h-[60vh]">
-                <Loader2 className="w-10 h-10 text-primary animate-spin" />
-            </div>
-        );
-    }
-
     return (
-        <div className="flex h-[calc(100vh-120px)] gap-8 animate-in fade-in duration-500">
-            {/* Main AI Chat */}
-            <div className="flex-1 flex flex-col glass border-white/5 rounded-[40px] overflow-hidden relative">
-                <div className="absolute top-0 right-0 w-64 h-64 bg-primary/5 blur-[100px] pointer-events-none" />
+        <div className="flex h-[calc(100vh-200px)] gap-12 animate-in fade-in slide-in-from-bottom-12 duration-700">
+            {/* Neural Sidebar */}
+            <div className="w-[420px] flex flex-col gap-10">
+                <div className="space-y-4">
+                    <h1 className="text-6xl font-black tracking-tighter uppercase italic text-white flex items-center gap-6 underline decoration-primary/50 decoration-4 underline-offset-8">
+                        Uni<span className="text-primary italic animate-neon">Bot</span>
+                    </h1>
+                    <p className="text-xl font-medium text-muted-foreground italic flex items-center gap-3">
+                        <BrainCircuit className="w-6 h-6 text-primary" /> Core Neural Assistant
+                    </p>
+                </div>
 
-                {/* Header */}
-                <div className="h-20 px-8 border-b border-white/5 flex items-center justify-between bg-white/[0.02]">
-                    <div className="flex items-center gap-4">
-                        <div className="w-12 h-12 rounded-[18px] bg-primary flex items-center justify-center shadow-[0_0_25px_rgba(0,212,170,0.35)]">
-                            <Bot className="text-black w-7 h-7" />
-                        </div>
-                        <div>
-                            <h1 className="text-xl font-black italic tracking-tighter">UniBot Assistant</h1>
-                            <div className="flex items-center gap-2">
-                                <span className="relative flex h-2 w-2">
-                                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-primary opacity-75"></span>
-                                    <span className="relative inline-flex rounded-full h-2 w-2 bg-primary"></span>
-                                </span>
-                                <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground opacity-70">Neural Engine Active</p>
+                <div className="grid grid-cols-1 gap-6">
+                    {[
+                        { label: "Mission Planner", icon: Target, desc: "Map logic for next 14 cycles" },
+                        { label: "Binary Audit", icon: Cpu, desc: "Architecture deep-scan" },
+                        { label: "Sync Velocity", icon: Activity, desc: "Analyze personnel throughput" },
+                        { label: "Neural Drift", icon: BrainCircuit, desc: "Experimental logic expansion" },
+                    ].map((tool, i) => (
+                        <button key={i} className="flex items-center gap-6 p-8 rounded-[36px] bg-white/[0.02] border border-white/5 hover:border-primary/40 hover:bg-primary/5 transition-all text-left group relative overflow-hidden shadow-2xl">
+                            <div className="absolute top-0 right-0 w-20 h-20 bg-primary/5 blur-2xl -mr-10 -mt-10 opacity-0 group-hover:opacity-100 transition-opacity" />
+                            <div className="w-14 h-14 rounded-[20px] bg-white/5 flex items-center justify-center border border-white/5 group-hover:bg-primary group-hover:text-black transition-all shadow-xl">
+                                <tool.icon className="w-8 h-8" />
                             </div>
+                            <div>
+                                <p className="text-[12px] font-black italic text-primary uppercase tracking-[0.3em] mb-1">{tool.label}</p>
+                                <p className="text-sm text-muted-foreground font-bold italic opacity-60 group-hover:opacity-100 transition-opacity">{tool.desc}</p>
+                            </div>
+                            <ChevronRight className="w-6 h-6 ml-auto text-muted-foreground opacity-30 group-hover:opacity-100 group-hover:text-primary transition-all" />
+                        </button>
+                    ))}
+                </div>
+
+                <Card className="glass border-white/5 shadow-2xl mt-auto p-10 rounded-[48px] border-dashed relative overflow-hidden group">
+                    <div className="absolute top-0 right-0 w-32 h-32 bg-primary/5 blur-3xl -mr-16 -mt-16 group-hover:bg-primary/10 transition-colors" />
+                    <div className="flex items-center gap-4 mb-6 relative z-10">
+                        <div className="w-10 h-10 rounded-[14px] bg-primary/20 flex items-center justify-center">
+                            <Zap className="w-5 h-5 text-primary" />
                         </div>
+                        <p className="text-[12px] font-black uppercase tracking-[0.3em] text-white italic">Neural Capacity</p>
+                    </div>
+                    <p className="text-sm text-muted-foreground leading-relaxed font-bold italic opacity-60 group-hover:opacity-100 transition-opacity relative z-10">
+                        UniBot is currently operating on **4.2 NEURAL PROTOCOLS**. For maximum predictive accuracy, verify all active data links before transmission.
+                    </p>
+                </Card>
+            </div>
+
+            {/* Neural Terminal */}
+            <div className="flex-1 glass border-white/5 rounded-[64px] flex flex-col overflow-hidden relative shadow-2xl">
+                <div className="h-28 border-b border-white/5 flex items-center justify-between px-12 bg-white/[0.02] relative z-20">
+                    <div className="flex items-center gap-6">
+                        <div className="relative">
+                            <div className="w-4 h-4 rounded-full bg-primary animate-ping absolute inset-0" />
+                            <div className="w-4 h-4 rounded-full bg-primary relative shadow-[0_0_15px_rgba(0,212,170,1)]" />
+                        </div>
+                        <span className="text-[12px] font-black uppercase tracking-[0.5em] text-white italic">Frequencies Synchronized</span>
+                    </div>
+                    <div className="flex items-center gap-4">
+                        <div className="flex items-center gap-2 px-6 py-3 rounded-full bg-white/5 border border-white/5 shadow-inner">
+                            <Fingerprint className="w-5 h-5 text-primary" />
+                            <span className="text-[10px] font-black italic uppercase tracking-[0.2em] text-muted-foreground">AUTH_L4</span>
+                        </div>
+                        <Button variant="ghost" size="sm" className="text-[10px] font-black italic tracking-widest text-muted-foreground hover:text-red-400 transition-all uppercase px-8 border border-white/5 rounded-full h-12">Purge Session</Button>
                     </div>
                 </div>
 
-                {/* Chat Area */}
-                <ScrollArea className="flex-1 p-8">
-                    <div className="max-w-3xl mx-auto space-y-10">
-                        {messages.length === 0 && (
-                            <div className="py-20 text-center space-y-6">
-                                <div className="w-20 h-20 rounded-[32px] bg-white/5 flex items-center justify-center mx-auto mb-6">
-                                    <Sparkles className="w-10 h-10 text-primary opacity-20" />
-                                </div>
-                                <h2 className="text-3xl font-black italic tracking-tighter text-white">How can I help you <br /><span className="text-primary italic text-4xl">Optimize</span> today?</h2>
-                                <p className="text-muted-foreground font-medium max-w-sm mx-auto">I have access to all your tasks, documents, and messages to provide context-aware support.</p>
-                            </div>
-                        )}
+                <ScrollArea className="flex-1 p-16 relative z-10">
+                    <div className="space-y-16 max-w-5xl mx-auto">
                         {messages.map((msg, i) => (
-                            <div key={msg.id || i} className={`flex gap-6 ${msg.type === 'ai' ? '' : 'flex-row-reverse'}`}>
-                                <div className={`w-12 h-12 rounded-2xl flex items-center justify-center shrink-0 border border-white/10 shadow-xl ${msg.type === 'ai' ? 'bg-primary/10 text-primary' : 'bg-white/5 text-white'}`}>
-                                    {msg.type === 'ai' ? <Bot className="w-6 h-6" /> : <div className="text-xs font-black">YOU</div>}
+                            <div key={i} className={cn("flex items-start gap-10 animate-in fade-in slide-in-from-bottom-8 duration-500", msg.role === 'assistant' ? "flex-row" : "flex-row-reverse")}>
+                                <div className={cn(
+                                    "w-16 h-16 rounded-[24px] flex items-center justify-center border transition-all shadow-2xl",
+                                    msg.role === 'assistant'
+                                        ? "bg-white/5 border-primary/20 text-primary shadow-[0_0_20px_rgba(0,212,170,0.1)]"
+                                        : "bg-primary border-primary text-black"
+                                )}>
+                                    {msg.role === 'assistant' ? <Bot className="w-10 h-10" /> : <UserCircle className="w-10 h-10" />}
                                 </div>
-                                <div className={`space-y-4 max-w-[80%] ${msg.type === 'ai' ? '' : 'items-end flex flex-col'}`}>
+                                <div className={cn("space-y-4 max-w-[80%]", msg.role === 'user' ? "text-right" : "")}>
+                                    <p className="text-[10px] font-black uppercase tracking-[0.4em] text-muted-foreground italic opacity-50">{msg.role === 'assistant' ? 'UniBot Transmission' : 'Operator Authority'}</p>
                                     <div className={cn(
-                                        "p-6 rounded-[32px] text-sm leading-relaxed shadow-lg transition-all",
-                                        msg.type === 'ai'
-                                            ? 'bg-white/[0.04] border border-white/10 text-zinc-100 hover:border-primary/20'
-                                            : 'bg-primary text-black font-bold'
+                                        "p-10 rounded-[48px] text-xl font-bold italic tracking-tighter leading-relaxed shadow-2xl border",
+                                        msg.role === 'assistant'
+                                            ? "bg-white/[0.03] border-white/5 text-muted-foreground selection:bg-primary/20"
+                                            : "bg-primary text-black rounded-tr-none border-primary/20"
                                     )}>
-                                        {msg.content}
+                                        <div className="markdown-content prose prose-invert prose-primary max-w-none prose-p:leading-relaxed prose-headings:text-white prose-headings:font-black prose-headings:italic prose-headings:tracking-tighter prose-hr:border-white/5">
+                                            <ReactMarkdown>
+                                                {msg.content}
+                                            </ReactMarkdown>
+                                        </div>
                                     </div>
-                                    <p className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground opacity-50 px-2">
-                                        {new Date(msg.createdAt || Date.now()).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                                    </p>
                                 </div>
                             </div>
                         ))}
-                        {sending && (
-                            <div className="flex gap-6 animate-pulse">
-                                <div className="w-12 h-12 rounded-2xl bg-primary/10 flex items-center justify-center border border-primary/20">
-                                    <Bot className="w-6 h-6 text-primary" />
-                                </div>
-                                <div className="bg-white/5 border border-white/5 p-6 rounded-[32px] flex items-center gap-2">
-                                    <div className="w-1.5 h-1.5 bg-primary rounded-full animate-bounce" />
-                                    <div className="w-1.5 h-1.5 bg-primary rounded-full animate-bounce [animation-delay:0.2s]" />
-                                    <div className="w-1.5 h-1.5 bg-primary rounded-full animate-bounce [animation-delay:0.4s]" />
-                                </div>
-                            </div>
-                        )}
                         <div ref={scrollRef} />
                     </div>
                 </ScrollArea>
 
-                {/* Input Area */}
-                <div className="p-8 border-t border-white/5 bg-white/[0.01]">
-                    <div className="max-w-3xl mx-auto relative group">
-                        <div className="absolute -inset-1 bg-primary/20 rounded-[35px] blur-xl opacity-0 group-focus-within:opacity-100 transition duration-700" />
-                        <div className="relative glass border-white/10 rounded-[32px] p-2.5 flex items-center gap-3 bg-black/60">
-                            <Button variant="ghost" size="icon" className="rounded-2xl h-12 w-12 text-muted-foreground hover:bg-white/5"><Plus className="w-6 h-6" /></Button>
-                            <input
-                                value={query}
-                                onChange={(e) => setQuery(e.target.value)}
-                                onKeyDown={(e) => {
-                                    if (e.key === 'Enter' && !e.shiftKey) {
-                                        e.preventDefault();
-                                        handleSend();
-                                    }
-                                }}
-                                disabled={sending}
-                                placeholder="Ask about tasks, docs, or growth friction..."
-                                className="flex-1 bg-transparent border-none focus:ring-0 px-4 text-sm font-medium text-white placeholder:text-muted-foreground/50"
-                            />
-                            <Button
-                                onClick={() => handleSend()}
-                                disabled={!query.trim() || sending}
-                                className="rounded-2xl h-12 w-16 bg-primary text-black hover:bg-primary/90 shadow-[0_0_20px_rgba(0,212,170,0.4)] disabled:opacity-50 transition-all font-black"
-                            >
-                                {sending ? <Loader2 className="w-5 h-5 animate-spin" /> : <Send className="w-5 h-5" />}
-                            </Button>
+                {/* Input Protocol */}
+                <div className="p-16 bg-black/40 border-t border-white/5 backdrop-blur-2xl relative z-20">
+                    <div className="max-w-5xl mx-auto relative group">
+                        <div className="absolute inset-y-0 left-8 flex items-center text-muted-foreground group-focus-within:text-primary transition-colors">
+                            <Terminal className="w-8 h-8" />
                         </div>
+                        <input
+                            value={input}
+                            onChange={(e) => setInput(e.target.value)}
+                            onKeyDown={(e) => e.key === 'Enter' && handleSend()}
+                            placeholder="INITIALIZE NEURAL COMMAND..."
+                            className="w-full bg-white/5 border border-white/10 rounded-[40px] py-10 pl-24 pr-24 text-2xl font-black italic tracking-tighter focus:outline-none focus:border-primary/50 focus:bg-white/[0.08] transition-all shadow-2xl placeholder:opacity-10 selection:bg-primary/30"
+                        />
+                        <Button
+                            onClick={handleSend}
+                            disabled={!input.trim() || loading}
+                            className="absolute right-6 top-1/2 -translate-y-1/2 w-20 h-20 bg-primary hover:bg-primary/90 text-black rounded-[30px] shadow-[0_0_30px_rgba(0,212,170,0.5)] transition-all flex items-center justify-center hover:scale-110 active:scale-90"
+                        >
+                            {loading ? <Loader2 className="w-10 h-10 animate-spin" /> : <Send className="w-10 h-10" />}
+                        </Button>
                     </div>
-                </div>
-            </div>
-
-            {/* Sidebar Suggestions */}
-            <div className="w-[320px] flex flex-col gap-8">
-                <div className="space-y-6">
-                    <h3 className="text-xs font-black uppercase tracking-[0.2em] text-muted-foreground flex items-center gap-2 px-2">
-                        <Lightbulb className="w-4 h-4 text-primary" /> Core Queries
-                    </h3>
-                    <div className="space-y-4">
-                        {suggestions.map((s, i) => (
-                            <button
-                                key={i}
-                                onClick={() => handleSend(s.title)}
-                                className="w-full glass border-white/5 p-6 rounded-[32px] text-left hover:border-primary/40 transition-all group relative overflow-hidden"
-                            >
-                                <div className="absolute top-0 right-0 w-24 h-24 bg-primary/5 blur-3xl -mr-12 -mt-12 group-hover:bg-primary/10 transition-all duration-700" />
-                                <div className="w-10 h-10 rounded-xl bg-white/5 flex items-center justify-center text-primary mb-4 group-hover:bg-primary group-hover:text-black transition-all shadow-lg border border-white/10">
-                                    <s.icon className="w-5 h-5" />
-                                </div>
-                                <h4 className="text-base font-black italic tracking-tighter mb-1">{s.title}</h4>
-                                <p className="text-[11px] text-muted-foreground font-medium leading-relaxed mb-4">{s.desc}</p>
-                                <div className="flex items-center text-[10px] text-primary font-black uppercase tracking-widest opacity-0 group-hover:opacity-100 transition-all transform translate-x-[-10px] group-hover:translate-x-0">
-                                    Execute <ArrowRight className="w-3 h-3 ml-2" />
-                                </div>
-                            </button>
-                        ))}
-                    </div>
-                </div>
-
-                <div className="mt-auto">
-                    <Card className="glass border-primary/20 bg-primary/5 shadow-none rounded-[32px] p-6 overflow-hidden relative group">
-                        <div className="absolute top-0 right-0 w-32 h-32 bg-primary/10 blur-3xl -mr-16 -mt-16 group-hover:bg-primary/20 transition-all duration-700" />
-                        <h4 className="font-black text-xs uppercase tracking-[0.15em] flex items-center gap-2 mb-3">
-                            <Zap className="w-4 h-4 text-primary" /> Knowledge Base
-                        </h4>
-                        <p className="text-[10px] text-muted-foreground font-medium leading-relaxed mb-6">
-                            UniBot is currently indexing your <b>Project Universe</b> to provide precise time-allocation forecasts.
-                        </p>
-                        <div className="relative">
-                            <div className="h-1.5 bg-white/5 rounded-full overflow-hidden">
-                                <div className="h-full bg-primary w-[78%] relative">
-                                    <div className="absolute inset-0 bg-white/20 animate-pulse" />
-                                </div>
-                            </div>
-                            <div className="flex justify-between items-center mt-3">
-                                <span className="text-[9px] font-black text-primary uppercase tracking-[0.1em]">Optimizing Engine</span>
-                                <span className="text-[9px] font-black text-white">78% Complete</span>
-                            </div>
-                        </div>
-                    </Card>
+                    <p className="text-[10px] text-muted-foreground/30 text-center uppercase tracking-[0.5em] mt-8 font-black italic">Experimental transmission Node | Neural synchronization active</p>
                 </div>
             </div>
         </div>
     );
 }
+

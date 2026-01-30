@@ -38,49 +38,49 @@
   --color-card-foreground: var(--card-foreground);
   --color-card: var(--card);
 
-  --radius-sm: calc(var(--radius) - 4px);
-  --radius-md: calc(var(--radius) - 2px);
-  --radius-lg: var(--radius);
-  --radius-xl: calc(var(--radius) + 4px);
-  --radius-2xl: calc(var(--radius) + 8px);
-  --radius-3xl: calc(var(--radius) + 12px);
-  --radius-4xl: calc(var(--radius) + 16px);
+  --radius-sm: 12px;
+  --radius-md: 18px;
+  --radius-lg: 24px;
+  --radius-xl: 32px;
+  --radius-2xl: 40px;
+  --radius-3xl: 48px;
+  --radius-4xl: 60px;
 }
 
 :root {
-  --radius: 20px;
-  --background: #0a0a0a;
+  --radius: 32px;
+  --background: #050505;
   --foreground: #ffffff;
-  --card: rgba(255, 255, 255, 0.03);
+  --card: #0A0A0A;
   --card-foreground: #ffffff;
-  --popover: #0a0a0a;
+  --popover: #050505;
   --popover-foreground: #ffffff;
   --primary: #00d4aa;
   --primary-foreground: #000000;
-  --secondary: #1a1a1a;
+  --secondary: #111111;
   --secondary-foreground: #ffffff;
-  --muted: #1a1a1a;
-  --muted-foreground: #a1a1aa;
-  --accent: #00d4aa;
-  --accent-foreground: #000000;
-  --destructive: #ef4444;
-  --border: rgba(255, 255, 255, 0.1);
-  --input: rgba(255, 255, 255, 0.05);
+  --muted: #111111;
+  --muted-foreground: #888888;
+  --accent: #111111;
+  --accent-foreground: #ffffff;
+  --destructive: #ff3333;
+  --border: #1a1a1a;
+  --input: #1a1a1a;
   --ring: #00d4aa;
-  
-  --chart-1: #00d4aa;
-  --chart-2: #3b82f6;
-  --chart-3: #8b5cf6;
-  --chart-4: #ec4899;
-  --chart-5: #f59e0b;
 
-  --sidebar: #0a0a0a;
+  --chart-1: #00d4aa;
+  --chart-2: #10b981;
+  --chart-3: #f59e0b;
+  --chart-4: #ef4444;
+  --chart-5: #8b5cf6;
+
+  --sidebar: #050505;
   --sidebar-foreground: #ffffff;
   --sidebar-primary: #00d4aa;
   --sidebar-primary-foreground: #000000;
-  --sidebar-accent: rgba(255, 255, 255, 0.05);
-  --sidebar-accent-foreground: #00d4aa;
-  --sidebar-border: rgba(255, 255, 255, 0.1);
+  --sidebar-accent: #111111;
+  --sidebar-accent-foreground: #ffffff;
+  --sidebar-border: #1a1a1a;
   --sidebar-ring: #00d4aa;
 }
 
@@ -88,26 +88,66 @@
   * {
     @apply border-border outline-ring/50;
   }
+
   body {
-    @apply bg-background text-foreground selection:bg-primary/30 selection:text-primary;
-    font-feature-settings: "rlig" 1, "calt" 1;
+    @apply bg-background text-foreground selection:bg-primary/30 selection:text-primary antialiased;
+    font-feature-settings: "rlig" 1, "calt" 1, "cv05" 1, "cv08" 1;
   }
 }
 
 @layer components {
   .glass {
-    @apply bg-card backdrop-blur-xl border border-border;
+    @apply bg-card/60 backdrop-blur-xl border border-white/[0.05];
   }
-  
+
   .glass-hover {
-    @apply hover:bg-white/[0.05] hover:border-primary/30 transition-all duration-300;
+    @apply hover:bg-white/[0.08] hover:border-white/[0.1] transition-all duration-300;
   }
 
   .neon-glow {
-    box-shadow: 0 0 15px rgba(0, 212, 170, 0.2);
+    @apply shadow-[0_0_20px_rgba(0, 212, 170, 0.3)];
   }
 
-  .neon-border {
-    @apply border-primary/50 shadow-[0_0_10px_rgba(0,212,170,0.1)];
+  .neural-card {
+    @apply bg-zinc-950/40 backdrop-blur-md border border-white/5 rounded-[40px] overflow-hidden transition-all duration-500 hover:border-primary/20 hover:bg-zinc-900/40;
   }
+
+  .neural-input {
+    @apply bg-zinc-950/80 border border-white/5 rounded-2xl px-6 py-4 focus:ring-2 focus:ring-primary/50 focus:border-primary outline-none transition-all;
+  }
+
+  .neural-button {
+    @apply font-black italic tracking-tighter transition-all active:scale-[0.95] uppercase;
+  }
+}
+
+/* Custom Scrollbar for Neural UI */
+::-webkit-scrollbar {
+  width: 4px;
+  height: 4px;
+}
+
+::-webkit-scrollbar-track {
+  @apply bg-transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  @apply bg-primary/20 rounded-full hover:bg-primary/40 transition-colors;
+}
+
+@keyframes pulse-neon {
+
+  0%,
+  100% {
+    opacity: 0.8;
+  }
+
+  50% {
+    opacity: 1;
+    filter: brightness(1.2);
+  }
+}
+
+.animate-neon {
+  animation: pulse-neon 2s infinite ease-in-out;
 }

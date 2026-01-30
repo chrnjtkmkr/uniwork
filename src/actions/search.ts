@@ -37,9 +37,9 @@ export async function globalSearch(workspaceId: string, query: string) {
         ]);
 
         const results = [
-            ...tasks.map(t => ({ ...t, category: 'Task', href: '/dashboard/tasks' })),
-            ...docs.map(d => ({ ...d, category: 'Doc', href: '/dashboard/docs', name: d.title })),
-            ...files.map(f => ({ ...f, category: 'File', href: '/dashboard/files' }))
+            ...tasks.map((t: typeof tasks[number]) => ({ ...t, category: 'Task', href: '/dashboard/tasks' })),
+            ...docs.map((d: typeof docs[number]) => ({ ...d, category: 'Doc', href: '/dashboard/docs', name: d.title })),
+            ...files.map((f: typeof files[number]) => ({ ...f, category: 'File', href: '/dashboard/files' }))
         ];
 
         return { success: true, results };
