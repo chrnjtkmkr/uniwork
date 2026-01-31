@@ -60,7 +60,7 @@ export async function getUnifiedInbox(workspaceId: string) {
         // Fetch external messages from all channels in this workspace
         const messages = await prisma.message.findMany({
             where: {
-                channelId: { in: (await prisma.channel.findMany({ where: { workspaceId }, select: { id: true } })).map(c => c.id) },
+                channelId: { in: (await prisma.channel.findMany({ where: { workspaceId }, select: { id: true } })).map((c: { id: string }) => c.id) },
                 type: 'external'
             },
             include: { user: true },
