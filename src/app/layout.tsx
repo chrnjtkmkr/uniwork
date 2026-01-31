@@ -1,24 +1,25 @@
 import type { Metadata } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
+import { Inter } from "next/font/google";
 import "./globals.css";
 import { ThemeProvider } from "@/components/theme-provider";
 import { ClerkWrapper } from "@/components/clerk-wrapper";
 
-const geistSans = Geist({
+const geistSans = {
   variable: "--font-geist-sans",
-  subsets: ["latin"],
-});
+  className: "font-sans",
+};
 
-const geistMono = Geist_Mono({
+const geistMono = {
   variable: "--font-geist-mono",
-  subsets: ["latin"],
-});
+  className: "font-mono",
+};
 
 export const metadata: Metadata = {
   title: "UniWork | Neural Task OS",
   description: "High-performance synchronization for modern universes.",
 };
 
+import ErrorBoundary from "@/components/ErrorBoundary";
 import { Toaster } from "sonner";
 
 export default function RootLayout({
@@ -38,7 +39,9 @@ export default function RootLayout({
           enableSystem={false}
           disableTransitionOnChange
         >
-          {isDemoMode ? children : <ClerkWrapper>{children}</ClerkWrapper>}
+          <ErrorBoundary>
+            {isDemoMode ? children : <ClerkWrapper>{children}</ClerkWrapper>}
+          </ErrorBoundary>
           <Toaster position="bottom-right" theme="dark" richColors />
         </ThemeProvider>
       </body>

@@ -1,26 +1,32 @@
 "use server";
 
 import { prisma } from "@/lib/prisma";
-import { currentUser } from "@clerk/nextjs/server";
+import { createServerSupabaseClient } from "@/lib/supabase/server";
+import { revalidatePath } from "next/cache";
+
+export async function getCurrentUser() {
+    const supabase = await createServerSupabaseClient();
+    const { data: { user } } = await supabase.auth.getUser();
+
+    if (!user) return null;
+
+    return await prisma.user.findUnique({
+        where: { supabaseId: user.id }
+    });
+}
 
 export async function syncUser() {
-    let user = null;
+    const supabase = await createServerSupabaseClient();
+    const { data: { user } } = await supabase.auth.getUser();
 
-    try {
-        user = await currentUser();
-    } catch (e) {
-        // Clerk is disabled or keys are invalid
-    }
-
-    // Handle Demo Mode if no Clerk user is found
+    // Handle Demo Mode if no Supabase user is found
     if (!user) {
-        // Find or create a demo user in the DB
         try {
             const demoUser = await prisma.user.upsert({
-                where: { clerkId: 'demo_user_1' },
+                where: { supabaseId: 'demo_user_1' },
                 update: {},
                 create: {
-                    clerkId: 'demo_user_1',
+                    supabaseId: 'demo_user_1',
                     email: 'demo@uniwork.com',
                     name: 'Demo Explorer',
                     avatar: 'https://github.com/shadcn.png',
@@ -35,17 +41,17 @@ export async function syncUser() {
 
     try {
         const dbUser = await prisma.user.upsert({
-            where: { clerkId: user.id },
+            where: { supabaseId: user.id },
             update: {
-                email: user.emailAddresses[0].emailAddress,
-                name: user.fullName || user.username || "Anonymous",
-                avatar: user.imageUrl,
+                email: user.email!,
+                name: user.user_metadata.full_name || "Anonymous",
+                avatar: user.user_metadata.avatar_url,
             },
             create: {
-                clerkId: user.id,
-                email: user.emailAddresses[0].emailAddress,
-                name: user.fullName || user.username || "Anonymous",
-                avatar: user.imageUrl,
+                supabaseId: user.id,
+                email: user.email!,
+                name: user.user_metadata.full_name || "Anonymous",
+                avatar: user.user_metadata.avatar_url,
             },
         });
 
@@ -66,6 +72,7 @@ export async function updateUserProfile(userId: string, data: { name?: string, a
                 bio: data.bio
             }
         });
+        revalidatePath("/dashboard/settings");
         return { success: true, user: updatedUser };
     } catch (error) {
         console.error("Error updating profile:", error);
@@ -73,3 +80,8 @@ export async function updateUserProfile(userId: string, data: { name?: string, a
     }
 }
 
+export async function signOut() {
+    const supabase = await createServerSupabaseClient();
+    await supabase.auth.signOut();
+    revalidatePath("/");
+}

@@ -1,23 +1,11 @@
 import { create } from 'zustand';
 import { updateTaskStatus, createTask, deleteTask as deleteTaskAction } from '@/actions/tasks';
 
+// Task type defined in '@/types' but extended here if needed or just reused
+import { Task } from "@/types";
+
 export type TaskStatus = 'todo' | 'in-progress' | 'review' | 'done';
 export type TaskPriority = 'low' | 'medium' | 'high' | 'urgent';
-
-export interface Task {
-    id: string;
-    title: string;
-    description: string | null;
-    category: string;
-    status: string;
-    priority: string;
-    dueDate?: string | Date;
-    workspaceId: string;
-    creatorId: string;
-    assignees?: any[];
-    createdAt?: string;
-    updatedAt?: string;
-}
 
 interface TaskStore {
     tasks: Task[];
@@ -34,7 +22,7 @@ export const useTaskStore = create<TaskStore>((set, get) => ({
     addTask: async (taskData) => {
         const result = await createTask(taskData);
         if (result.success && result.task) {
-            set((state) => ({ tasks: [result.task as any, ...state.tasks] }));
+            set((state) => ({ tasks: [result.task as unknown as Task, ...state.tasks] }));
         }
     },
 

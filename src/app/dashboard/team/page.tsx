@@ -2,35 +2,28 @@
 
 import React, { useState, useEffect } from "react";
 import {
-    Users,
     UserPlus,
     Shield,
-    Mail,
     MoreHorizontal,
-    Search,
-    Filter,
-    ArrowUpRight,
-    MapPin,
-    Globe,
-    Zap,
     Loader2,
-    Trash2,
+    Check,
     ChevronDown,
-    Activity,
-    BrainCircuit,
-    Cpu,
-    Target
+    User,
+    Trash2
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
     getWorkspaceMembers,
-    addMemberToWorkspace,
     updateMemberRole,
-    getFirstWorkspace
+    getFirstWorkspace,
+    removeMemberFromWorkspace,
 } from "@/actions/workspaces";
+import {
+    createInvitation,
+    getWorkspaceInvitations
+} from "@/actions/invitations";
+import { getCurrentUser } from "@/actions/auth";
 import {
     Dialog,
     DialogContent,
@@ -48,21 +41,32 @@ import {
 } from "@/components/ui/select";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
+import { User as UserType, Workspace } from "@/types";
 
 export default function TeamPage() {
+    const [invitations, setInvitations] = useState<any[]>([]);
+    const [currentUser, setCurrentUser] = useState<UserType | null>(null);
+    const [workspace, setWorkspace] = useState<any>(null);
     const [members, setMembers] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
-    const [workspace, setWorkspace] = useState<any>(null);
+    const [inviteRole, setInviteRole] = useState("member");
     const [newEmail, setNewEmail] = useState("");
     const [isInviting, setIsInviting] = useState(false);
 
     useEffect(() => {
         async function loadData() {
+            const user = await getCurrentUser();
+            setCurrentUser(user as any);
+
             const ws = await getFirstWorkspace();
             if (ws) {
                 setWorkspace(ws);
-                const data = await getWorkspaceMembers(ws.id);
-                setMembers(data);
+                const [memberData, inviteData] = await Promise.all([
+                    getWorkspaceMembers(ws.id),
+                    getWorkspaceInvitations(ws.id)
+                ]);
+                setMembers(memberData);
+                setInvitations(inviteData);
             }
             setLoading(false);
         }
@@ -70,24 +74,44 @@ export default function TeamPage() {
     }, []);
 
     const handleInvite = async () => {
-        if (!newEmail || !workspace) return;
+        if (!newEmail || !workspace || !currentUser) return;
         setIsInviting(true);
-        const result = await addMemberToWorkspace(workspace.id, newEmail);
-        if (result.success) {
-            setMembers([...members, result.member]);
+        const result = await createInvitation({
+            workspaceId: workspace.id,
+            email: newEmail,
+            role: inviteRole,
+            invitedById: currentUser.id
+        });
+
+        if (result.success && result.invitation) {
+            setInvitations([...invitations, { ...result.invitation, invitedBy: currentUser }]);
             setNewEmail("");
-            toast.success("Personnel sync successful.");
+            toast.success("Invitation signal dispatched.");
         } else {
-            toast.error("Failed to establish neural link.");
+            toast.error(result.error || "Failed to initiate invite sequence.");
         }
         setIsInviting(false);
     };
 
     const handleRoleUpdate = async (memberId: string, role: string) => {
-        const result = await updateMemberRole(memberId, role);
+        if (!workspace || !currentUser) return;
+        const result = await updateMemberRole(currentUser.id, workspace.id, memberId, { role });
         if (result.success) {
             setMembers(members.map(m => m.id === memberId ? { ...m, role } : m));
             toast.success("Protocol updated.");
+        } else {
+            toast.error(result.error || "Authorization update failed.");
+        }
+    };
+
+    const handleRemoveMember = async (memberId: string) => {
+        if (!workspace || !currentUser) return;
+        const result = await removeMemberFromWorkspace(currentUser.id, workspace.id, memberId);
+        if (result.success) {
+            setMembers(members.filter(m => m.id !== memberId));
+            toast.success("Node disconnected.");
+        } else {
+            toast.error(result.error || "Disconnection sequence failed.");
         }
     };
 
@@ -100,134 +124,246 @@ export default function TeamPage() {
     }
 
     return (
-        <div className="space-y-16 animate-in fade-in slide-in-from-bottom-12 duration-700 pb-20">
-            {/* Neural Header */}
-            <div className="flex flex-col md:flex-row md:items-center justify-between gap-10">
-                <div className="space-y-4">
-                    <h1 className="text-6xl font-black tracking-tighter uppercase italic text-white underline decoration-primary/50 decoration-4 underline-offset-8">Team <span className="text-primary italic animate-neon">Nexus</span></h1>
-                    <p className="text-xl font-medium text-muted-foreground italic">Managing personnel access and neural authorization protocols.</p>
+        <div className="p-8 lg:p-12">
+            {/* Header */}
+            <header className="flex justify-between items-center mb-10">
+                <div>
+                    <h1 className="text-5xl font-black italic tracking-tighter mb-1">
+                        <span className="text-white">TEAM</span>{" "}
+                        <span className="text-[#3B82F6]">NEXUS</span>
+                    </h1>
+                    <p className="text-slate-500 font-medium italic text-sm">
+                        Managing personnel access and neural authorization protocols.
+                    </p>
                 </div>
                 <Dialog>
                     <DialogTrigger asChild>
-                        <Button className="bg-primary text-black hover:bg-primary/90 h-16 px-10 rounded-[32px] font-black italic tracking-tighter text-xl shadow-[0_0_20px_rgba(0,212,170,0.3)] transition-all uppercase group">
-                            <UserPlus className="w-6 h-6 mr-3 group-hover:scale-110 transition-transform" /> Sync Personnel
+                        <Button
+                            className="bg-[#3B82F6] text-white px-8 py-3 rounded-full flex items-center gap-2 font-bold tracking-tighter text-sm shadow-[0_0_15px_rgba(59,130,246,0.4)] hover:shadow-[0_0_25px_rgba(59,130,246,0.6)] hover:-translate-y-0.5 transition-all"
+                        >
+                            <UserPlus className="w-4 h-4" />
+                            SYNC PERSONNEL
                         </Button>
                     </DialogTrigger>
-                    <DialogContent className="glass border-white/10 text-white rounded-[40px] p-12 animate-in zoom-in-95 duration-500">
+                    <DialogContent className="bg-[#0f0f0f] border-white/10 text-white rounded-[40px] p-12">
                         <DialogHeader>
-                            <DialogTitle className="text-4xl font-black tracking-tighter uppercase italic">Invite <span className="text-primary italic">Operator</span></DialogTitle>
+                            <DialogTitle className="text-4xl font-black tracking-tighter uppercase italic">
+                                Invite <span className="text-[#3B82F6] italic">Operator</span>
+                            </DialogTitle>
                         </DialogHeader>
                         <div className="space-y-10 pt-10">
                             <div className="space-y-4">
-                                <label className="text-[12px] font-black uppercase tracking-[0.3em] text-muted-foreground ml-2">Neural Email Address</label>
+                                <label className="text-[12px] font-bold uppercase tracking-[0.3em] text-slate-500 ml-2">
+                                    Authorization Role
+                                </label>
+                                <Select defaultValue="member" onValueChange={setInviteRole}>
+                                    <SelectTrigger className="bg-white/5 border-white/5 h-16 rounded-[24px] text-lg font-bold px-8">
+                                        <SelectValue placeholder="Select Role" />
+                                    </SelectTrigger>
+                                    <SelectContent className="bg-[#0f0f0f] border-white/10 text-white rounded-[24px]">
+                                        <SelectItem value="admin">Admin</SelectItem>
+                                        <SelectItem value="manager">Manager</SelectItem>
+                                        <SelectItem value="member">Member</SelectItem>
+                                        <SelectItem value="viewer">Viewer</SelectItem>
+                                    </SelectContent>
+                                </Select>
+                            </div>
+                            <div className="space-y-4">
+                                <label className="text-[12px] font-bold uppercase tracking-[0.3em] text-slate-500 ml-2">
+                                    Neural Email Address
+                                </label>
                                 <Input
                                     placeholder="OPERATOR@NEURAL.LINK"
                                     value={newEmail}
                                     onChange={e => setNewEmail(e.target.value)}
-                                    className="bg-white/5 border-white/5 h-16 rounded-[24px] text-xl font-black italic px-8 focus:border-primary/50"
+                                    className="bg-white/5 border-white/5 h-16 rounded-[24px] text-xl font-black italic px-8 focus:border-[#3B82F6]/50"
                                 />
                             </div>
-                            <Button onClick={handleInvite} disabled={isInviting} className="w-full h-20 bg-primary text-black hover:bg-primary/90 rounded-[28px] font-black italic text-xl tracking-tighter transition-all uppercase">
+                            <Button
+                                onClick={handleInvite}
+                                disabled={isInviting}
+                                className="w-full h-20 bg-[#3B82F6] text-white hover:bg-[#3B82F6]/90 rounded-[28px] font-black italic text-xl tracking-tighter transition-all uppercase"
+                            >
                                 {isInviting ? <Loader2 className="w-6 h-6 animate-spin" /> : "Establish Link"}
                             </Button>
                         </div>
                     </DialogContent>
                 </Dialog>
-            </div>
+            </header>
 
-            {/* Personnel Analytics */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-10">
-                {[
-                    { label: "Active Nodes", value: members.length, icon: BrainCircuit, color: "text-primary" },
-                    { label: "Admin Priority", value: members.filter(m => m.role === 'admin' || m.role === 'owner').length, icon: Shield, color: "text-blue-400" },
-                    { label: "Auth Flow", value: "98.9%", icon: Activity, color: "text-purple-400" },
-                ].map((stat, i) => (
-                    <Card key={i} className="glass border-white/5 rounded-[40px] overflow-hidden relative p-8 group hover:scale-[1.02] transition-transform">
-                        <div className="absolute top-0 right-0 w-24 h-24 bg-primary/5 blur-3xl -mr-12 -mt-12 group-hover:bg-primary/10 transition-colors" />
-                        <div className="flex items-center gap-6">
-                            <div className={cn("p-4 rounded-[20px] bg-white/5", stat.color)}>
-                                <stat.icon className="w-8 h-8" />
+            {/* Main Card */}
+            <div className="bg-[#0f0f0f] rounded-[2.5rem] border border-white/5 overflow-hidden min-h-[600px] flex flex-col">
+                {/* Table Header */}
+                <div className="grid grid-cols-12 px-10 py-6 border-b border-white/5 items-center bg-white/[0.01]">
+                    <div className="col-span-6">
+                        <span className="text-[11px] font-bold text-slate-500 uppercase tracking-[0.2em]">
+                            Identity Node
+                        </span>
+                    </div>
+                    <div className="col-span-3">
+                        <span className="text-[11px] font-bold text-slate-500 uppercase tracking-[0.2em]">
+                            Authorization Level
+                        </span>
+                    </div>
+                    <div className="col-span-3">
+                        <span className="text-[11px] font-bold text-slate-500 uppercase tracking-[0.2em]">
+                            Tags
+                        </span>
+                    </div>
+                </div>
+
+                {/* Table Body */}
+                <div className="divide-y divide-white/5 flex-1 overflow-y-auto">
+                    {members.map((member, index) => (
+                        <div
+                            key={member.id}
+                            className="grid grid-cols-12 px-10 py-8 items-center hover:bg-white/[0.02] transition-colors group"
+                        >
+                            {/* Identity Node */}
+                            <div className="col-span-6 flex items-center gap-6">
+                                <div className="relative">
+                                    <Avatar className="w-16 h-16 rounded-2xl bg-white/5 p-1 border border-white/10 group-hover:border-[#3B82F6]/30 transition-colors">
+                                        <AvatarImage src={member.avatar || ""} />
+                                        <AvatarFallback className="bg-white/5 rounded-xl flex items-center justify-center">
+                                            <User className="w-6 h-6 text-slate-400" />
+                                        </AvatarFallback>
+                                    </Avatar>
+                                    {member.role === 'owner' && (
+                                        <div className="absolute -top-1 -right-1 w-5 h-5 bg-[#3B82F6] rounded-full border-2 border-[#0f0f0f] flex items-center justify-center">
+                                            <Check className="w-3 h-3 text-white font-bold" />
+                                        </div>
+                                    )}
+                                </div>
+                                <div>
+                                    <div className="flex items-center gap-3">
+                                        <h3 className={cn(
+                                            "text-2xl font-black italic",
+                                            member.role === 'owner' ? "text-[#3B82F6]" : "text-white"
+                                        )}>
+                                            {member.name}
+                                        </h3>
+                                        {member.role === 'owner' && (
+                                            <span className="px-2 py-0.5 bg-[#3B82F6]/10 border border-[#3B82F6]/20 text-[9px] font-bold text-[#3B82F6] rounded-full uppercase tracking-tighter">
+                                                System Owner
+                                            </span>
+                                        )}
+                                    </div>
+                                    <p className="text-slate-500 font-bold text-xs uppercase tracking-widest mt-1">
+                                        {member.email}
+                                    </p>
+                                </div>
                             </div>
-                            <div>
-                                <p className="text-[10px] font-black uppercase tracking-[0.3em] text-muted-foreground mb-1 italic opacity-50">{stat.label}</p>
-                                <h3 className="text-4xl font-black italic tracking-tighter text-white">{stat.value}</h3>
+
+                            {/* Authorization Level */}
+                            <div className="col-span-3">
+                                <Select
+                                    defaultValue={member.role}
+                                    onValueChange={(val) => handleRoleUpdate(member.id, val)}
+                                    disabled={member.role === 'owner'}
+                                >
+                                    <SelectTrigger className="inline-flex items-center gap-10 px-6 py-2 border border-white/10 rounded-full group-hover:border-[#3B82F6]/30 transition-colors bg-transparent h-auto">
+                                        <div className="flex items-center justify-between w-full gap-4">
+                                            <span className="text-[10px] font-black uppercase tracking-widest">
+                                                <SelectValue />
+                                            </span>
+                                            <ChevronDown className="w-4 h-4 text-slate-400" />
+                                        </div>
+                                    </SelectTrigger>
+                                    <SelectContent className="bg-[#0f0f0f] border-white/10 text-white rounded-[24px]">
+                                        <SelectItem value="owner" className="font-black text-[10px] uppercase">
+                                            Owner
+                                        </SelectItem>
+                                        <SelectItem value="admin" className="font-black text-[10px] uppercase">
+                                            Admin
+                                        </SelectItem>
+                                        <SelectItem value="member" className="font-black text-[10px] uppercase">
+                                            Member
+                                        </SelectItem>
+                                        <SelectItem value="editor" className="font-black text-[10px] uppercase">
+                                            Editor
+                                        </SelectItem>
+                                    </SelectContent>
+                                </Select>
+                            </div>
+
+                            {/* Tags */}
+                            <div className="col-span-3 flex items-center justify-between">
+                                <div className="flex gap-2">
+                                    {(member.tags || (member.role === 'owner' ? 'Core,Operator' : member.role === 'admin' ? 'Support' : 'Analyst,Node'))
+                                        .split(',')
+                                        .map((tag: string) => (
+                                            <span
+                                                key={tag}
+                                                className="px-3 py-1 bg-white/5 border border-white/10 rounded text-[9px] font-bold uppercase tracking-widest text-slate-500"
+                                            >
+                                                {tag.trim()}
+                                            </span>
+                                        ))
+                                    }
+                                </div>
+                                {member.role !== 'owner' && (
+                                    <button
+                                        onClick={() => handleRemoveMember(member.id)}
+                                        className="text-slate-500 hover:text-red-500 transition-colors p-2"
+                                    >
+                                        <Trash2 className="w-5 h-5" />
+                                    </button>
+                                )}
                             </div>
                         </div>
-                    </Card>
-                ))}
-            </div>
+                    ))}
 
-            {/* Personnel Directory */}
-            <Card className="glass border-white/5 rounded-[56px] overflow-hidden shadow-2xl">
-                <div className="overflow-x-auto">
-                    <table className="w-full text-left">
-                        <thead>
-                            <tr className="border-b border-white/5 bg-white/[0.02]">
-                                <th className="p-10 text-[12px] font-black italic tracking-[0.3em] text-muted-foreground uppercase">Identity Node</th>
-                                <th className="p-10 text-[12px] font-black italic tracking-[0.3em] text-muted-foreground uppercase">Authorization Level</th>
-                                <th className="p-10 text-[12px] font-black italic tracking-[0.3em] text-muted-foreground uppercase">Tags</th>
-                                <th className="p-10"></th>
-                            </tr>
-                        </thead>
-                        <tbody className="divide-y divide-white/5">
-                            {members.map(member => (
-                                <tr key={member.id} className="hover:bg-white/[0.03] transition-all group">
-                                    <td className="p-10">
-                                        <div className="flex items-center gap-8">
-                                            <div className="relative">
-                                                <Avatar className="h-16 w-16 rounded-[24px] border-4 border-white/10 group-hover:border-primary transition-colors">
-                                                    <AvatarImage src={member.avatar || ""} />
-                                                    <AvatarFallback className="bg-white/5 text-[10px] font-black italic uppercase">?</AvatarFallback>
-                                                </Avatar>
-                                                {member.role === 'owner' && (
-                                                    <div className="absolute -top-2 -right-2 bg-primary text-black p-1 rounded-lg">
-                                                        <Shield className="w-4 h-4" />
-                                                    </div>
-                                                )}
-                                            </div>
-                                            <div className="space-y-1">
-                                                <div className="flex items-center gap-3">
-                                                    <span className="text-2xl font-black italic tracking-tighter text-white group-hover:text-primary transition-colors">{member.name}</span>
-                                                    {member.role === 'owner' && <Badge className="bg-primary/20 text-primary border-none font-black italic text-[8px] uppercase tracking-widest px-2">System Owner</Badge>}
-                                                </div>
-                                                <p className="text-[12px] font-black italic text-muted-foreground opacity-50 uppercase tracking-widest">{member.email}</p>
-                                            </div>
-                                        </div>
-                                    </td>
-                                    <td className="p-10">
-                                        <Select
-                                            defaultValue={member.role}
-                                            onValueChange={(val) => handleRoleUpdate(member.id, val)}
-                                            disabled={member.role === 'owner'}
-                                        >
-                                            <SelectTrigger className="bg-white/5 border-white/5 h-12 rounded-2xl text-[10px] font-black italic uppercase tracking-widest w-40 px-6">
-                                                <SelectValue />
-                                            </SelectTrigger>
-                                            <SelectContent className="glass border-white/10 text-white rounded-[24px]">
-                                                <SelectItem value="owner" className="font-black italic text-[10px] uppercase">Owner</SelectItem>
-                                                <SelectItem value="admin" className="font-black italic text-[10px] uppercase">Admin</SelectItem>
-                                                <SelectItem value="member" className="font-black italic text-[10px] uppercase">Member</SelectItem>
-                                            </SelectContent>
-                                        </Select>
-                                    </td>
-                                    <td className="p-10">
-                                        <div className="flex flex-wrap gap-3">
-                                            {(member.tags || "CORE,OPERATOR").split(',').map((tag: string) => (
-                                                <Badge key={tag} className="bg-white/5 hover:bg-white/10 text-muted-foreground text-[8px] font-black italic tracking-widest uppercase py-1 border-white/5">{tag}</Badge>
-                                            ))}
-                                        </div>
-                                    </td>
-                                    <td className="p-10 text-right">
-                                        <Button variant="ghost" size="icon" className="w-14 h-14 rounded-2xl opacity-0 group-hover:opacity-100 transition-all hover:bg-white/10">
-                                            <MoreHorizontal className="w-6 h-6 text-muted-foreground" />
-                                        </Button>
-                                    </td>
-                                </tr>
-                            ))}
-                        </tbody>
-                    </table>
+                    {/* Pending Invitations */}
+                    {invitations.map((invite) => (
+                        <div
+                            key={invite.id}
+                            className="grid grid-cols-12 px-10 py-8 items-center border-t border-white/5 opacity-60 hover:opacity-100 transition-all bg-[#0f0f0f]"
+                        >
+                            <div className="col-span-6 flex items-center gap-6">
+                                <div className="relative">
+                                    <div className="w-16 h-16 rounded-2xl bg-[#3B82F6]/5 border border-[#3B82F6]/10 flex items-center justify-center">
+                                        <UserPlus className="w-8 h-8 text-[#3B82F6] opacity-50" />
+                                    </div>
+                                </div>
+                                <div>
+                                    <div className="flex items-center gap-3">
+                                        <h3 className="text-2xl font-black italic text-slate-400">
+                                            Pending Invitation
+                                        </h3>
+                                        <span className="px-2 py-0.5 bg-yellow-500/10 border border-yellow-500/20 text-[9px] font-bold text-yellow-500 rounded-full uppercase">
+                                            Frequency Active
+                                        </span>
+                                    </div>
+                                    <p className="text-slate-500 font-bold text-xs uppercase tracking-widest mt-1">
+                                        {invite.email}
+                                    </p>
+                                </div>
+                            </div>
+                            <div className="col-span-3">
+                                <div className="inline-flex items-center gap-4 px-6 py-2 border border-white/10 rounded-full bg-white/[0.02]">
+                                    <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">
+                                        {invite.role}
+                                    </span>
+                                    <Shield className="w-4 h-4 text-slate-500" />
+                                </div>
+                            </div>
+                            <div className="col-span-3 flex items-center justify-between">
+                                <div className="flex flex-col gap-1">
+                                    <span className="text-[8px] font-bold uppercase tracking-widest text-slate-600">
+                                        Invited By: {invite.invitedBy?.name || "Neural Node"}
+                                    </span>
+                                    <span className="text-[8px] font-bold uppercase tracking-widest text-slate-700">
+                                        Expires: {new Date(invite.expiresAt).toLocaleDateString()}
+                                    </span>
+                                </div>
+                                <button className="text-slate-500 hover:text-white transition-colors p-2">
+                                    <MoreHorizontal className="w-5 h-5" />
+                                </button>
+                            </div>
+                        </div>
+                    ))}
                 </div>
-            </Card>
-        </div>
+            </div >
+        </div >
     );
 }

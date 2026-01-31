@@ -5,15 +5,11 @@ import {
     ChevronLeft,
     ChevronRight,
     Plus,
-    Calendar as CalendarIcon,
     Clock,
-    CheckCircle2,
-    Circle,
     Loader2
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
+import { Card } from "@/components/ui/card";
 import {
     format,
     addMonths,
@@ -24,9 +20,9 @@ import {
     endOfWeek,
     isSameMonth,
     isSameDay,
-    addDays,
     eachDayOfInterval
 } from "date-fns";
+import { Task } from "@/types";
 import { getFirstWorkspace } from "@/actions/workspaces";
 import { getTasks } from "@/actions/tasks";
 import { cn } from "@/lib/utils";
@@ -34,7 +30,7 @@ import { cn } from "@/lib/utils";
 export default function CalendarPage() {
     const [currentMonth, setCurrentMonth] = useState(new Date());
     const [selectedDate, setSelectedDate] = useState(new Date());
-    const [tasks, setTasks] = useState<any[]>([]);
+    const [tasks, setTasks] = useState<Task[]>([]);
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
@@ -42,8 +38,8 @@ export default function CalendarPage() {
             const ws = await getFirstWorkspace();
             if (ws) {
                 const result = await getTasks(ws.id);
-                if (result.success) {
-                    setTasks(result.tasks || []);
+                if (result.success && result.tasks) {
+                    setTasks(result.tasks);
                 }
             }
             setLoading(false);

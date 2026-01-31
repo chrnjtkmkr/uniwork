@@ -3,44 +3,50 @@ generator client {
 }
 
 datasource db {
-  provider = "sqlite"
-  url      = env("DATABASE_URL")
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
 }
 
 model User {
-  id            String      @id @default(cuid())
-  clerkId       String      @unique
-  email         String      @unique
-  name          String?
-  avatar        String?
-  bio           String?
-  role          String      @default("member") // admin, member, owner
-  position      String?     // e.g. Frontend Dev
-  designation   String?     // e.g. Lead
-  tags          String?     // comma separated tags
-  workspaces    Workspace[] @relation("WorkspaceOwner")
-  memberOf      Workspace[] @relation("WorkspaceMembers")
-  tasks         Task[]      @relation("TaskCreator")
-  assignedTasks Task[]      @relation("TaskAssignees")
-  docs          Document[]
-  messages      Message[]
-  createdAt     DateTime    @default(now())
-  updatedAt     DateTime    @updatedAt
+  id              String           @id @default(cuid())
+  supabaseId      String           @unique
+  email           String           @unique
+  name            String?
+  avatar          String?
+  bio             String?
+  role            String           @default("member") // admin, member, owner
+  position        String?          // e.g. Frontend Dev
+  designation     String?          // e.g. Lead
+  tags            String?          // comma separated tags
+  workspaces      Workspace[]      @relation("WorkspaceOwner")
+  memberOf        Workspace[]      @relation("WorkspaceMembers")
+  tasks           Task[]           @relation("TaskCreator")
+  assignedTasks   Task[]           @relation("TaskAssignees")
+  docs            Document[]
+  messages        Message[]
+  files           File[]           @relation("FileOwner")
+  externalAccounts ExternalAccount[]
+  sentInvites     Invitation[]     @relation("InvitedBy")
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
 }
 
 model Workspace {
-  id        String     @id @default(cuid())
-  name      String
-  type      String?    // creator, startup, etc.
-  owner     User       @relation("WorkspaceOwner", fields: [ownerId], references: [id])
-  ownerId   String
-  members   User[]     @relation("WorkspaceMembers")
-  channels  Channel[]
-  tasks     Task[]
-  docs      Document[]
-  files     File[]
-  createdAt DateTime   @default(now())
-  updatedAt DateTime   @updatedAt
+  id           String        @id @default(cuid())
+  name         String
+  type         String?       // creator, startup, etc.
+  owner        User          @relation("WorkspaceOwner", fields: [ownerId], references: [id])
+  ownerId      String
+  members      User[]        @relation("WorkspaceMembers")
+  channels     Channel[]
+  tasks        Task[]
+  docs         Document[]
+  files        File[]
+  integrations Integration[]
+  invitations  Invitation[]
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
 }
 
 model Channel {
@@ -49,6 +55,7 @@ model Channel {
   description String?
   workspace   Workspace @relation(fields: [workspaceId], references: [id])
   workspaceId String
+  messages    Message[]
   createdAt   DateTime  @default(now())
 }
 
@@ -61,7 +68,7 @@ model Task {
   priority    String    @default("medium") // low, medium, high, urgent
   dueDate     DateTime?
   completedAt DateTime?
-  tags        String?   
+  tags        String?
   workspace   Workspace @relation(fields: [workspaceId], references: [id])
   workspaceId String
   creator     User      @relation("TaskCreator", fields: [creatorId], references: [id])
@@ -71,6 +78,20 @@ model Task {
   updatedAt   DateTime  @updatedAt
 }
 
+model Invitation {
+  id          String    @id @default(cuid())
+  workspace   Workspace @relation(fields: [workspaceId], references: [id])
+  workspaceId String
+  email       String
+  role        String    @default("member")
+  token       String    @unique
+  status      String    @default("pending") // pending, accepted, rejected, expired
+  invitedBy   User      @relation("InvitedBy", fields: [invitedById], references: [id])
+  invitedById String
+  expiresAt   DateTime
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+}
 
 model Document {
   id          String    @id @default(cuid())
@@ -81,20 +102,35 @@ model Document {
   workspaceId String
   author      User      @relation(fields: [authorId], references: [id])
   authorId    String
+  history     History[]
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
 }
 
+model History {
+  id         String   @id @default(cuid())
+  content    String
+  document   Document @relation(fields: [documentId], references: [id])
+  documentId String
+  createdAt  DateTime @default(now())
+}
+
 model File {
-  id          String    @id @default(cuid())
-  name        String
-  size        Int
-  type        String
-  drive       String    @default("Local")
-  workspace   Workspace @relation(fields: [workspaceId], references: [id])
-  workspaceId String
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
+  id             String    @id @default(cuid())
+  name           String
+  size           Int
+  type           String
+  mimeType       String?
+  source         String    @default("internal") // internal, google_drive, dropbox, onedrive
+  externalFileId String?
+  previewUrl     String?
+  drive          String    @default("Local")
+  workspace      Workspace @relation(fields: [workspaceId], references: [id])
+  workspaceId    String
+  owner          User      @relation("FileOwner", fields: [ownerId], references: [id])
+  ownerId        String
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
 }
 
 model Message {
@@ -102,8 +138,43 @@ model Message {
   content     String
   userId      String
   user        User      @relation(fields: [userId], references: [id])
+  channel     Channel   @relation(fields: [channelId], references: [id])
   channelId   String
-  type        String    @default("text") // text, ai
+  type        String    @default("text") // text, ai, external
+  source      String?   // slack, discord, etc.
   createdAt   DateTime  @default(now())
+}
+
+model Integration {
+  id          String    @id @default(cuid())
+  type        String    // slack, discord, telegram, gmail
+  config      String?   // JSON configuration
+  workspace   Workspace @relation(fields: [workspaceId], references: [id])
+  workspaceId String
+  isActive    Boolean   @default(true)
+  createdAt   DateTime  @default(now())
+}
+
+model ExternalAccount {
+  id           String   @id @default(cuid())
+  provider     String   // google, dropbox, onedrive, slack, discord, etc.
+  providerId   String
+  accessToken  String
+  refreshToken String?
+  expiresAt    DateTime?
+  user         User     @relation(fields: [userId], references: [id])
+  userId       String
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+}
+
+model AuditLog {
+  id          String   @id @default(cuid())
+  action      String   // INVITE_SENT, ROLE_UPDATED, FILE_DELETED, etc.
+  userId      String?
+  workspaceId String?
+  details     String?  // JSON string for additional context
+  ipAddress   String?
+  createdAt   DateTime @default(now())
 }
 

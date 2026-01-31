@@ -29,11 +29,13 @@ const steps = [
     { id: 4, title: "Success!", subtitle: "Ready to launch" },
 ];
 
+import { User } from "@/types";
+
 export default function OnboardingPage() {
     const [currentStep, setCurrentStep] = useState(1);
     const [loading, setLoading] = useState(true);
     const [isSaving, setIsSaving] = useState(false);
-    const [user, setUser] = useState<any>(null);
+    const [user, setUser] = useState<User | null>(null);
     const [formData, setFormData] = useState({
         name: "",
         type: "",

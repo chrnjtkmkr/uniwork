@@ -1,100 +1,129 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
-    Cloud,
-    MessageSquare,
-    Send,
-    PhoneCall,
-    Github,
-    Slack,
     Zap,
     Plug,
     Plus,
-    Search,
     CheckCircle2,
     ExternalLink,
     ShieldCheck,
-    AlertCircle,
     Loader2
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
+import { getIntegrations, connectIntegration } from "@/actions/integrations";
+import { getFirstWorkspace } from "@/actions/workspaces";
+import { toast } from "sonner";
 
-const initialIntegrations = [
+const staticIntegrations = [
     {
         id: "gdrive",
         name: "Google Drive",
+        type: "gdrive",
         description: "Sync documents and spreadsheets automatically across universes.",
         category: "Cloud Storage",
-        status: "connected",
         icon: "GD",
         color: "bg-blue-500/10 text-blue-500"
     },
     {
         id: "dropbox",
         name: "Dropbox",
+        type: "dropbox",
         description: "Access your cloud assets directly within the UniWork timeline.",
         category: "Cloud Storage",
-        status: "connected",
         icon: "DB",
         color: "bg-blue-600/10 text-blue-600"
     },
     {
         id: "slack",
         name: "Slack",
+        type: "slack",
         description: "Pulse task updates to your team communication nodes.",
         category: "Communication",
-        status: "disconnected",
         icon: "SL",
         color: "bg-purple-500/10 text-purple-500"
     },
     {
         id: "telegram",
         name: "Telegram Bot",
+        type: "telegram",
         description: "Receive neural notifications and chat via encrypted bot.",
         category: "Messaging",
-        status: "connected",
         icon: "TG",
         color: "bg-sky-500/10 text-sky-500"
     },
     {
-        id: "whatsapp",
-        name: "WhatsApp",
-        description: "Get hyper-summaries and urgent project alerts via WhatsApp.",
-        category: "Messaging",
-        status: "disconnected",
-        icon: "WA",
-        color: "bg-green-500/10 text-green-500"
-    },
-    {
         id: "github",
         name: "GitHub",
+        type: "github",
         description: "Link commits to neural tasks and track cosmic code changes.",
         category: "Development",
-        status: "connected",
         icon: "GH",
         color: "bg-zinc-700/10 text-white"
+    },
+    {
+        id: "discord",
+        name: "Discord",
+        type: "discord",
+        description: "Mirror communications across your Discord guild and UniWork.",
+        category: "Communication",
+        icon: "DC",
+        color: "bg-indigo-500/10 text-indigo-400"
+    },
+    {
+        id: "gmail",
+        name: "Gmail / Inbox",
+        type: "gmail",
+        description: "Sync your unified inbox with your Gmail frequency.",
+        category: "Messaging",
+        icon: "GM",
+        color: "bg-red-500/10 text-red-500"
     },
 ];
 
 export default function IntegrationsPage() {
     const [filter, setFilter] = useState("All");
-    const [apps, setApps] = useState(initialIntegrations);
+    const [connectedTypes, setConnectedTypes] = useState<string[]>([]);
     const [connectingId, setConnectingId] = useState<string | null>(null);
+    const [workspace, setWorkspace] = useState<any>(null);
+    const [loading, setLoading] = useState(true);
 
-    const toggleConnection = (id: string) => {
+    useEffect(() => {
+        async function init() {
+            const ws = await getFirstWorkspace();
+            if (ws) {
+                setWorkspace(ws);
+                const result = await getIntegrations(ws.id);
+                if (result.success && result.integrations) {
+                    setConnectedTypes(result.integrations.map((i: any) => i.type));
+                }
+            }
+            setLoading(false);
+        }
+        init();
+    }, []);
+
+    const toggleConnection = async (type: string, id: string) => {
+        if (!workspace) return;
+
         setConnectingId(id);
-        setTimeout(() => {
-            setApps(prev => prev.map(app =>
-                app.id === id
-                    ? { ...app, status: app.status === 'connected' ? 'disconnected' : 'connected' }
-                    : app
-            ));
-            setConnectingId(null);
-        }, 800);
+        if (connectedTypes.includes(type)) {
+            // Disconnect logic not yet in actions, just simulate for now
+            setConnectedTypes(prev => prev.filter(t => t !== type));
+            toast.info(`${type} link terminated.`);
+        } else {
+            const result = await connectIntegration(workspace.id, type, { status: 'active' });
+            if (result.success) {
+                setConnectedTypes(prev => [...prev, type]);
+                toast.success(`${type} neural link established!`);
+            } else {
+                toast.error(`Failed to connect ${type}`);
+            }
+        }
+        setConnectingId(null);
     };
 
     return (
@@ -134,50 +163,53 @@ export default function IntegrationsPage() {
 
             {/* Grid */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-                {apps.filter(i => filter === 'All' || i.category === filter).map(item => (
-                    <Card key={item.id} className="glass border-white/5 shadow-none hover:border-primary/40 transition-all rounded-[40px] overflow-hidden group relative">
-                        <div className="absolute top-0 right-0 w-32 h-32 bg-primary/5 blur-3xl -mr-16 -mt-16 group-hover:bg-primary/10 transition-all duration-700" />
+                {staticIntegrations.filter(i => filter === 'All' || i.category === filter).map(item => {
+                    const isConnected = connectedTypes.includes(item.type);
+                    return (
+                        <Card key={item.id} className="glass border-white/5 shadow-none hover:border-primary/40 transition-all rounded-[40px] overflow-hidden group relative">
+                            <div className="absolute top-0 right-0 w-32 h-32 bg-primary/5 blur-3xl -mr-16 -mt-16 group-hover:bg-primary/10 transition-all duration-700" />
 
-                        <CardHeader className="p-8 pb-0">
-                            <div className="flex items-start justify-between mb-6">
-                                <div className={cn("w-14 h-14 rounded-2xl flex items-center justify-center font-black text-xl shadow-xl transition-transform group-hover:scale-110", item.color)}>
-                                    {item.icon}
-                                </div>
-                                {item.status === 'connected' ? (
-                                    <Badge className="bg-primary/10 text-primary border-primary/20 hover:bg-primary/20 px-3 py-1 font-black uppercase tracking-widest text-[9px]">
-                                        <CheckCircle2 className="w-3.5 h-3.5 mr-1.5" /> Synced
-                                    </Badge>
-                                ) : (
-                                    <Badge variant="outline" className="border-white/10 text-muted-foreground bg-white/5 px-3 py-1 font-black uppercase tracking-widest text-[9px]">
-                                        Offline
-                                    </Badge>
-                                )}
-                            </div>
-                            <CardTitle className="text-2xl font-black italic tracking-tighter mb-2">{item.name}</CardTitle>
-                            <CardDescription className="text-sm font-medium leading-relaxed min-h-[48px]">{item.description}</CardDescription>
-                        </CardHeader>
-
-                        <CardContent className="p-8 pt-6">
-                            <div className="flex items-center justify-between mt-auto">
-                                <div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground opacity-60">
-                                    <Plug className="w-3.5 h-3.5 mr-1" /> {item.category}
-                                </div>
-                                <Button
-                                    disabled={connectingId === item.id}
-                                    onClick={() => toggleConnection(item.id)}
-                                    className={cn(
-                                        "rounded-2xl h-11 px-6 font-black uppercase tracking-widest text-[10px] transition-all",
-                                        item.status === 'connected'
-                                            ? 'bg-white/5 text-red-400 hover:bg-red-400/20 shadow-none'
-                                            : 'bg-primary text-black hover:bg-primary/90 shadow-[0_0_15px_rgba(0,212,170,0.25)]'
+                            <CardHeader className="p-8 pb-0">
+                                <div className="flex items-start justify-between mb-6">
+                                    <div className={cn("w-14 h-14 rounded-2xl flex items-center justify-center font-black text-xl shadow-xl transition-transform group-hover:scale-110", item.color)}>
+                                        {item.icon}
+                                    </div>
+                                    {isConnected ? (
+                                        <Badge className="bg-primary/10 text-primary border-primary/20 hover:bg-primary/20 px-3 py-1 font-black uppercase tracking-widest text-[9px]">
+                                            <CheckCircle2 className="w-3.5 h-3.5 mr-1.5" /> Synced
+                                        </Badge>
+                                    ) : (
+                                        <Badge variant="outline" className="border-white/10 text-muted-foreground bg-white/5 px-3 py-1 font-black uppercase tracking-widest text-[9px]">
+                                            Offline
+                                        </Badge>
                                     )}
-                                >
-                                    {connectingId === item.id ? <Loader2 className="w-4 h-4 animate-spin" /> : item.status === 'connected' ? 'Disconnect' : 'Sync Hub'}
-                                </Button>
-                            </div>
-                        </CardContent>
-                    </Card>
-                ))}
+                                </div>
+                                <CardTitle className="text-2xl font-black italic tracking-tighter mb-2">{item.name}</CardTitle>
+                                <CardDescription className="text-sm font-medium leading-relaxed min-h-[48px]">{item.description}</CardDescription>
+                            </CardHeader>
+
+                            <CardContent className="p-8 pt-6">
+                                <div className="flex items-center justify-between mt-auto">
+                                    <div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground opacity-60">
+                                        <Plug className="w-3.5 h-3.5 mr-1" /> {item.category}
+                                    </div>
+                                    <Button
+                                        disabled={connectingId === item.id}
+                                        onClick={() => toggleConnection(item.type, item.id)}
+                                        className={cn(
+                                            "rounded-2xl h-11 px-6 font-black uppercase tracking-widest text-[10px] transition-all",
+                                            isConnected
+                                                ? 'bg-white/5 text-red-400 hover:bg-red-400/20 shadow-none'
+                                                : 'bg-primary text-black hover:bg-primary/90 shadow-[0_0_15px_rgba(0,212,170,0.25)]'
+                                        )}
+                                    >
+                                        {connectingId === item.id ? <Loader2 className="w-4 h-4 animate-spin" /> : isConnected ? 'Disconnect' : 'Sync Hub'}
+                                    </Button>
+                                </div>
+                            </CardContent>
+                        </Card>
+                    );
+                })}
 
                 {/* Custom Webhook Card */}
                 <Card className="glass border-dashed border-white/20 shadow-none hover:border-primary/50 transition-all rounded-[40px] flex flex-col items-center justify-center p-10 text-center group bg-primary/[0.02]">

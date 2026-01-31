@@ -2,7 +2,6 @@
 
 import React, { useEffect, useState } from "react";
 import {
-    BarChart3,
     TrendingUp,
     Users,
     Clock,
@@ -36,7 +35,7 @@ export default function AnalyticsPage() {
         totalDocs: 0,
         avgVelocity: 0
     });
-    const [productivityTrend, setProductivityTrend] = useState<any[]>([]);
+    const [productivityTrend, setProductivityTrend] = useState<{ name: string, score: number }[]>([]);
 
     useEffect(() => {
         async function init() {
@@ -53,7 +52,7 @@ export default function AnalyticsPage() {
                         ...prev,
                         totalTasks: tasksRes.tasks!.length,
                         completedTasks: completed,
-                        avgVelocity: (completed / (tasksRes.tasks!.length || 1) * 100).toFixed(1) as any
+                        avgVelocity: Number((completed / (tasksRes.tasks!.length || 1) * 100).toFixed(1))
                     }));
 
                     // Simulate trend data based on actual tasks

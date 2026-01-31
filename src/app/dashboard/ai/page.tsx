@@ -2,22 +2,17 @@
 
 import React, { useState, useEffect, useRef } from "react";
 import {
-    Sparkles,
     Send,
     Loader2,
-    MessageSquare,
     Zap,
     Cpu,
     Target,
     Activity,
     BrainCircuit,
     ChevronRight,
-    Search,
     UserCircle,
     Bot,
     Terminal,
-    Eye,
-    ZapOff,
     Fingerprint
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -30,7 +25,7 @@ import { Badge } from "@/components/ui/badge";
 import ReactMarkdown from 'react-markdown';
 
 export default function AIAssistantPage() {
-    const [messages, setMessages] = useState<any[]>([
+    const [messages, setMessages] = useState<{ role: string, content: string }[]>([
         { role: 'assistant', content: "### [NEURAL_INIT_PROTOCOL_ACTIVE]\n\nSearching for authorized frequencies... Link established.\n\nI am **UNIBOT-4.2**, your neural synchronization partner. All logic nodes are currently operating at 98.4% efficiency. How shall we expand the universe today?" }
     ]);
     const [input, setInput] = useState("");

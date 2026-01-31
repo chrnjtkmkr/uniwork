@@ -15,16 +15,54 @@ export async function getDocs(workspaceId: string) {
     }
 }
 
-export async function updateDoc(docId: string, content: string) {
+export async function updateDoc(docId: string, data: { title?: string, content?: string }) {
     try {
         const doc = await prisma.document.update({
             where: { id: docId },
-            data: { content },
+            data: {
+                title: data.title,
+                content: data.content,
+            },
         });
+
+        if (data.content !== undefined) {
+            await prisma.history.create({
+                data: {
+                    documentId: docId,
+                    content: data.content,
+                }
+            });
+        }
+
         revalidatePath("/dashboard/docs");
         return { success: true, doc };
     } catch (error) {
         return { success: false, error: "Failed to update doc" };
+    }
+}
+
+export async function deleteDoc(docId: string) {
+    try {
+        await prisma.document.delete({
+            where: { id: docId }
+        });
+        revalidatePath("/dashboard/docs");
+        return { success: true };
+    } catch (error) {
+        return { success: false, error: "Failed to delete doc" };
+    }
+}
+
+export async function getDocumentHistory(documentId: string) {
+    try {
+        const history = await prisma.history.findMany({
+            where: { documentId },
+            orderBy: { createdAt: 'desc' },
+            take: 20
+        });
+        return { success: true, history };
+    } catch (error) {
+        return { success: false, error: "Failed to fetch history" };
     }
 }
 

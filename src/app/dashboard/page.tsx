@@ -2,217 +2,361 @@
 
 import React, { useState, useEffect } from "react";
 import {
-    TrendingUp,
-    CheckCircle2,
-    Clock,
-    Users,
-    ArrowUpRight,
-    ArrowDownRight,
-    MoreHorizontal,
-    Calendar as CalendarIcon,
-    MessageSquare,
-    FileText,
-    Loader2,
-    Sparkles,
-    Zap,
-    Activity,
-    ChevronRight,
     Search,
-    BrainCircuit,
-    ZapOff
+    Bell,
+    Check,
+    Plus,
+    UserPlus,
+    Loader2,
+    ArrowRight,
+    MessageSquare,
+    LayoutDashboard,
+    Clock
 } from "lucide-react";
-import { getFirstWorkspace, getWorkspaceMembers } from "@/actions/workspaces";
-import { getTasks, updateTaskStatus } from "@/actions/tasks";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { ScrollArea } from "@/components/ui/scroll-area";
+import {
+    getTasks,
+    getRecentMessages,
+    getWorkspaceMembers,
+    getFirstWorkspace,
+    updateTaskStatus,
+    getMockUser
+} from "@/actions/workspaces";
+import { toast } from "sonner";
+import Link from "next/link";
 import { cn } from "@/lib/utils";
 
 export default function DashboardPage() {
-    const [workspace, setWorkspace] = useState<any>(null);
     const [tasks, setTasks] = useState<any[]>([]);
+    const [recentMessages, setRecentMessages] = useState<any[]>([]);
     const [members, setMembers] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
+    const [user, setUser] = useState<any>(null);
+    const [workspace, setWorkspace] = useState<any>(null);
 
     useEffect(() => {
-        async function init() {
-            try {
-                const ws = await getFirstWorkspace();
-                if (ws) {
-                    setWorkspace(ws);
-                    const [taskRes, memberRes] = await Promise.all([
-                        getTasks(ws.id),
-                        getWorkspaceMembers(ws.id)
-                    ]);
-                    if (taskRes.success) {
-                        setTasks(taskRes.tasks || []);
-                    }
-                    setMembers(memberRes);
+        const loadData = async () => {
+            const ws = await getFirstWorkspace();
+            const me = await getMockUser();
+            setWorkspace(ws);
+            setUser(me);
+
+            if (ws) {
+                const [fetchedTasks, fetchedMessages, fetchedMembers] = await Promise.all([
+                    getTasks(ws.id, "todo"),
+                    getRecentMessages(),
+                    getWorkspaceMembers(ws.id)
+                ]);
+                if (fetchedTasks.success && fetchedTasks.tasks) {
+                    setTasks(fetchedTasks.tasks);
                 }
-            } catch (error) {
-                console.error("Dashboard init error:", error);
-            } finally {
-                setLoading(false);
+                setRecentMessages(fetchedMessages);
+                setMembers(fetchedMembers);
             }
-        }
-        init();
+            setLoading(false);
+        };
+        loadData();
     }, []);
+
+    const handleToggleTask = async (taskId: string) => {
+        if (!user) return;
+        const result = await updateTaskStatus(user.id, taskId, "done");
+        if (result.success) {
+            toast.success("Task completed!");
+            setTasks(prev => prev.filter(t => t.id !== taskId));
+        } else {
+            toast.error("Failed to update task");
+        }
+    };
 
     if (loading) {
         return (
-            <div className="flex items-center justify-center h-[60vh]">
-                <Loader2 className="w-10 h-10 text-primary animate-spin" />
+            <div className="flex items-center justify-center h-full bg-black">
+                <Loader2 className="w-10 h-10 text-blue-500 animate-spin" />
             </div>
         );
     }
 
-    const pendingTasks = tasks.filter(t => t.status !== 'done').slice(0, 5);
-    const completedTasks = tasks.filter(t => t.status === 'done').slice(0, 3);
-
     return (
-        <div className="space-y-12 animate-in fade-in slide-in-from-bottom-8 duration-700">
-            {/* Neural Header */}
-            <div className="flex flex-col md:flex-row md:items-center justify-between gap-10">
-                <div className="space-y-4">
-                    <h1 className="text-6xl font-black tracking-tighter uppercase italic text-white underline decoration-primary/50 decoration-4 underline-offset-8 leading-none">Command <span className="text-primary italic animate-neon">Center</span></h1>
-                    <p className="text-muted-foreground font-medium text-lg">Neural synchronization active for {workspace?.name}. System status: OPTIMAL.</p>
+        <div className="max-w-7xl mx-auto px-10 py-10">
+            {/* Header */}
+            <header className="flex items-center justify-between mb-12">
+                <div>
+                    <h1 className="text-2xl font-bold tracking-tight text-white uppercase italic">Advanced Team Hub</h1>
+                    <p className="text-sm text-zinc-500 mt-1 uppercase tracking-widest text-[10px] font-bold">
+                        <span className="w-1.5 h-1.5 bg-emerald-500 rounded-full inline-block mr-2 animate-pulse"></span>
+                        Real-time productivity stream active
+                    </p>
                 </div>
+
                 <div className="flex items-center gap-6">
-                    <div className="hidden lg:flex -space-x-4">
-                        {members.slice(0, 5).map(member => (
-                            <Avatar key={member.id} className="w-14 h-14 border-4 border-[#0A0A0A] shadow-2xl transition-transform hover:-translate-y-2">
-                                <AvatarImage src={member.avatar || ""} />
-                                <AvatarFallback className="bg-primary text-black font-black italic">{member.name[0]}</AvatarFallback>
-                            </Avatar>
-                        ))}
+                    {/* Search */}
+                    <div className="relative group hidden md:block">
+                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-500 w-4 h-4" />
+                        <input
+                            className="bg-zinc-900/30 border border-[#1A1A1A] rounded-xl pl-10 pr-4 py-2.5 text-xs w-72 focus:ring-1 focus:ring-[#3B82F6] focus:bg-zinc-900 transition-all text-white placeholder:text-zinc-600 outline-none uppercase font-bold tracking-tighter"
+                            placeholder="Search team or projects..."
+                            type="text"
+                        />
                     </div>
-                    <Button className="h-16 px-10 bg-primary text-black hover:bg-primary/90 rounded-[32px] font-black italic tracking-tighter text-xl shadow-[0_0_30px_rgba(0,212,170,0.4)] transition-all active:scale-95 group">
-                        <Zap className="w-6 h-6 mr-3 group-hover:rotate-12 transition-transform" /> SYNC DATA
-                    </Button>
-                </div>
-            </div>
 
-            {/* Core Metrics */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
-                {[
-                    { label: "Active Nodes", value: tasks.length.toString(), icon: Activity, color: "text-primary", trend: "+12%" },
-                    { label: "Neural Links", value: members.length.toString(), icon: BrainCircuit, color: "text-blue-400", trend: "+2" },
-                    { label: "Sync Velocity", value: "94.2%", icon: Zap, color: "text-purple-400", trend: "0.5%" },
-                    { label: "Storage Load", value: "2.1 GB", icon: FileText, color: "text-orange-400", trend: "Normal" },
-                ].map((stat, i) => (
-                    <Card key={i} className="glass border-white/5 hover:border-primary/30 transition-all group overflow-hidden rounded-[40px] relative">
-                        <div className="absolute top-0 right-0 w-24 h-24 bg-primary/5 blur-3xl -mr-12 -mt-12 group-hover:bg-primary/10 transition-colors" />
-                        <CardContent className="p-8 pt-10">
-                            <div className="flex items-center justify-between mb-8">
-                                <div className={cn("p-4 rounded-[20px] bg-white/5 shadow-inner", stat.color)}>
-                                    <stat.icon className="w-8 h-8" />
-                                </div>
-                                <Badge className="bg-white/5 border-white/5 text-[10px] font-black italic tracking-widest text-primary uppercase">{stat.trend}</Badge>
+                    <div className="flex items-center gap-4">
+                        {/* Notifications */}
+                        <button className="w-10 h-10 flex items-center justify-center rounded-xl border border-[#1A1A1A] text-zinc-400 hover:text-white hover:bg-zinc-900 transition-all relative">
+                            <Bell className="w-5 h-5" />
+                            <span className="absolute top-2.5 right-2.5 w-1.5 h-1.5 bg-[#3B82F6] rounded-full"></span>
+                        </button>
+
+                        {/* User Avatar */}
+                        {user?.avatar ? (
+                            <img
+                                alt="User"
+                                className="w-10 h-10 rounded-xl object-cover border border-blue-500/20"
+                                src={user.avatar}
+                            />
+                        ) : (
+                            <div className="w-10 h-10 rounded-xl bg-blue-600 flex items-center justify-center text-white font-bold">
+                                {user?.name?.[0] || "U"}
                             </div>
-                            <p className="text-[12px] font-black uppercase tracking-[0.3em] text-muted-foreground mb-2">{stat.label}</p>
-                            <h3 className="text-4xl font-black tracking-tighter italic text-white leading-none">{stat.value}</h3>
-                        </CardContent>
-                    </Card>
-                ))}
-            </div>
+                        )}
+                    </div>
+                </div>
+            </header>
 
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-10">
-                {/* Pending Logic Nodes */}
-                <Card className="lg:col-span-2 glass border-white/5 rounded-[48px] overflow-hidden shadow-2xl relative">
-                    <div className="absolute top-0 left-0 w-full h-2 bg-gradient-to-r from-primary/50 via-blue-500/50 to-primary/50" />
-                    <CardHeader className="p-10 pb-4 flex flex-row items-center justify-between">
-                        <div>
-                            <CardTitle className="text-4xl font-black tracking-tighter uppercase italic text-white flex items-center gap-4">
-                                Pending <span className="text-primary italic">Nodes</span>
-                            </CardTitle>
-                            <CardDescription className="text-lg font-medium mt-2">Critical path analysis of uncompleted synchronization steps.</CardDescription>
+            {/* Main Grid */}
+            <div className="grid grid-cols-12 gap-8">
+                {/* Left Column - 8/12 */}
+                <div className="col-span-12 lg:col-span-8 space-y-8">
+                    {/* Pending Tasks List */}
+                    <section className="bg-[#0A0A0A] border border-[#1A1A1A] rounded-2xl p-8 relative overflow-hidden group/card shadow-2xl">
+                        <div className="flex items-center justify-between mb-8 relative z-10">
+                            <div className="flex items-center gap-3">
+                                <h2 className="text-xs font-black uppercase tracking-[0.2em] text-zinc-400">Operational Log</h2>
+                                <span className="bg-blue-500/10 text-blue-500 text-[10px] px-2 py-0.5 rounded border border-blue-500/20 font-bold">
+                                    {tasks.length} ACTIVE NODES
+                                </span>
+                            </div>
+                            <Link href="/dashboard/tasks">
+                                <button className="text-[10px] text-[#3B82F6] font-black hover:underline tracking-widest uppercase flex items-center gap-1">
+                                    VIEW ALL <ArrowRight className="w-3 h-3 text-blue-500" />
+                                </button>
+                            </Link>
                         </div>
-                        <Button variant="ghost" className="h-12 w-12 rounded-2xl hover:bg-white/5">
-                            <MoreHorizontal className="w-6 h-6" />
-                        </Button>
-                    </CardHeader>
-                    <CardContent className="p-10 pt-4">
-                        <ScrollArea className="h-[450px] pr-6">
-                            <div className="space-y-6">
-                                {pendingTasks.map(task => (
-                                    <div key={task.id} className="group flex items-center gap-8 p-6 rounded-[32px] hover:bg-white/5 border border-transparent hover:border-white/5 transition-all relative overflow-hidden">
-                                        <div className="w-16 h-16 rounded-[24px] bg-white/5 flex items-center justify-center group-hover:scale-110 transition-transform shadow-xl border border-white/5">
-                                            <div className={cn(
-                                                "w-4 h-4 rounded-full animate-pulse",
-                                                task.priority === 'urgent' ? 'bg-red-500 shadow-[0_0_15px_rgba(239,68,68,0.5)]' :
-                                                    task.priority === 'high' ? 'bg-orange-500 shadow-[0_0_15px_rgba(245,158,11,0.5)]' : 'bg-primary shadow-[0_0_15px_rgba(0,212,170,0.5)]'
-                                            )} />
-                                        </div>
-                                        <div className="flex-1 space-y-2">
-                                            <div className="flex items-center gap-3">
-                                                <Badge variant="outline" className="text-[10px] font-black italic tracking-widest border-primary/20 text-primary uppercase px-3">{task.category}</Badge>
-                                                <span className="text-[10px] font-medium text-muted-foreground uppercase tracking-widest">Active Link</span>
+
+                        {tasks.length === 0 ? (
+                            <div className="p-12 text-center border-2 border-dashed border-zinc-900 rounded-2xl">
+                                <p className="text-zinc-600 text-[10px] font-black uppercase tracking-widest">System Clear: All nodes resolved</p>
+                            </div>
+                        ) : (
+                            <div className="space-y-4 relative z-10">
+                                {tasks.slice(0, 4).map((task) => (
+                                    <div key={task.id} className="flex items-center justify-between p-5 rounded-xl bg-white/[0.01] border border-white/[0.03] hover:border-blue-500/30 transition-all group/item shadow-sm hover:shadow-blue-500/5">
+                                        <div className="flex items-center gap-4">
+                                            <div
+                                                onClick={() => handleToggleTask(task.id)}
+                                                className="w-5 h-5 rounded border border-zinc-800 flex items-center justify-center hover:border-emerald-500 transition-all cursor-pointer bg-black/50"
+                                            >
+                                                <Check className="w-3.5 h-3.5 text-transparent group-hover/item:text-emerald-500" />
                                             </div>
-                                            <h4 className="text-2xl font-black tracking-tighter text-white italic group-hover:text-primary transition-colors">{task.title}</h4>
-                                            <p className="text-muted-foreground font-medium text-sm line-clamp-1">{task.description}</p>
+                                            <div>
+                                                <span className="text-sm font-bold text-zinc-100 uppercase tracking-tight italic block">{task.title}</span>
+                                                <span className="text-[9px] text-zinc-600 font-bold uppercase tracking-widest mt-1 block">{task.category || "GENERAL"}</span>
+                                            </div>
                                         </div>
-                                        <Button
-                                            onClick={async () => {
-                                                await updateTaskStatus(task.id, 'done');
-                                                setTasks(prev => prev.map(t => t.id === task.id ? { ...t, status: 'done' } : t));
-                                            }}
-                                            className="h-14 w-14 rounded-[20px] bg-white/5 hover:bg-primary hover:text-black transition-all group"
-                                        >
-                                            <CheckCircle2 className="w-6 h-6" />
-                                        </Button>
-                                    </div>
-                                ))}
-                                {pendingTasks.length === 0 && (
-                                    <div className="h-full flex flex-col items-center justify-center py-20 opacity-30">
-                                        <ZapOff className="w-16 h-16 mb-4" />
-                                        <p className="font-black italic tracking-tighter uppercase text-xl">All nodes synchronized.</p>
-                                    </div>
-                                )}
-                            </div>
-                        </ScrollArea>
-                    </CardContent>
-                </Card>
-
-                {/* Team Previews & Activity */}
-                <div className="space-y-10">
-                    <Card className="glass border-white/5 rounded-[48px] overflow-hidden shadow-2xl hover:scale-[1.02] transition-transform cursor-pointer">
-                        <CardHeader className="p-8 pb-4">
-                            <CardTitle className="text-2xl font-black tracking-tighter uppercase italic text-white">Verified <span className="text-primary italic">Links</span></CardTitle>
-                        </CardHeader>
-                        <CardContent className="p-8 pt-4">
-                            <div className="space-y-6">
-                                {members.slice(0, 4).map(member => (
-                                    <div key={member.id} className="flex items-center gap-4 group">
-                                        <div className="relative">
-                                            <Avatar className="h-12 w-12 rounded-xl border-2 border-white/10 group-hover:border-primary transition-colors">
-                                                <AvatarImage src={member.avatar || ""} />
-                                                <AvatarFallback className="bg-white/5 text-[10px] font-black italic uppercase tracking-widest">?</AvatarFallback>
-                                            </Avatar>
-                                            <div className="absolute -bottom-1 -right-1 w-4 h-4 rounded-full bg-primary border-2 border-[#0A0A0A] animate-pulse" />
+                                        <div className="flex items-center gap-4">
+                                            <Badge className={cn(
+                                                "text-[8px] font-black uppercase tracking-widest px-2 py-0.5",
+                                                task.priority === "urgent" ? "bg-red-500/10 text-red-500" : "bg-blue-500/10 text-blue-500"
+                                            )}>
+                                                {task.priority || "MEDIUM"}
+                                            </Badge>
+                                            <span className="text-[10px] text-zinc-600 font-bold tabular-nums">
+                                                {task.dueDate ? new Date(task.dueDate).toLocaleDateString() : "--/--"}
+                                            </span>
                                         </div>
-                                        <div>
-                                            <p className="font-black italic tracking-tighter text-sm text-white group-hover:text-primary transition-colors">{member.name}</p>
-                                            <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground opacity-60 italic">{member.position || "Operator"}</p>
-                                        </div>
-                                        <ChevronRight className="w-4 h-4 ml-auto text-muted-foreground opacity-0 group-hover:opacity-100 transition-all -translate-x-2 group-hover:translate-x-0" />
                                     </div>
                                 ))}
                             </div>
-                        </CardContent>
-                    </Card>
+                        )}
+                        <div className="absolute top-0 right-0 w-32 h-32 bg-blue-500/5 blur-[60px] rounded-full group-hover/card:bg-blue-500/10 transition-colors"></div>
+                    </section>
 
-                    <Card className="glass border-white/5 rounded-[48px] overflow-hidden shadow-2xl relative p-10 bg-gradient-to-br from-primary/10 to-transparent flex flex-col items-center text-center group">
-                        <div className="w-20 h-20 rounded-[32px] bg-primary/20 flex items-center justify-center mb-6 shadow-[0_0_20px_rgba(0,212,170,0.3)] group-hover:scale-110 transition-transform">
-                            <Zap className="w-10 h-10 text-primary" />
+                    {/* Active Chats */}
+                    <section className="bg-[#0A0A0A] border border-[#1A1A1A] rounded-2xl p-8 shadow-2xl">
+                        <div className="flex items-center justify-between mb-8">
+                            <h2 className="text-xs font-black uppercase tracking-[0.2em] text-zinc-400">Communication Frequency</h2>
+                            <Link href="/dashboard/chat">
+                                <span className="text-[10px] text-zinc-600 font-bold uppercase tracking-widest hover:text-blue-500 cursor-pointer transition-colors">3 Transmission Loops Incoming</span>
+                            </Link>
                         </div>
-                        <h3 className="text-2xl font-black italic tracking-tighter uppercase text-white mb-2">Initialize <span className="text-primary">Burst</span></h3>
-                        <p className="text-muted-foreground text-sm font-medium mb-8">Execute local synchronization audit across all active universes.</p>
-                        <Button className="w-full h-14 bg-white/5 hover:bg-white/10 text-white rounded-2xl font-black italic tracking-tighter uppercase border border-white/5">Commence Audit</Button>
-                    </Card>
+
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            {recentMessages.length === 0 ? (
+                                <div className="col-span-2 py-4 italic text-zinc-700 text-[10px] uppercase font-bold text-center">No recent transmissions</div>
+                            ) : (
+                                recentMessages.map((msg) => (
+                                    <div key={msg.id} className="flex items-center gap-4 p-4 rounded-xl bg-white/[0.01] border border-white/[0.03] hover:bg-white/[0.04] hover:border-blue-500/20 transition-all cursor-pointer group">
+                                        <div className="relative">
+                                            {msg.user?.avatar ? (
+                                                <img
+                                                    alt={msg.user.name}
+                                                    className="w-12 h-12 rounded-xl object-cover border border-zinc-800"
+                                                    src={msg.user.avatar}
+                                                />
+                                            ) : (
+                                                <div className="w-12 h-12 rounded-xl bg-zinc-800 flex items-center justify-center text-white border border-zinc-700 font-bold">
+                                                    {msg.user?.name?.[0] || "?"}
+                                                </div>
+                                            )}
+                                            <span className="absolute -bottom-1 -right-1 w-3 h-3 bg-emerald-500 border-2 border-black rounded-full"></span>
+                                        </div>
+                                        <div className="flex-1 min-w-0">
+                                            <div className="flex justify-between items-center mb-0.5">
+                                                <h4 className="text-xs font-bold text-zinc-100 uppercase tracking-tight">{msg.user?.name || "REDACTED"}</h4>
+                                                <span className="text-[8px] text-zinc-700 font-bold tabular-nums italic">
+                                                    {new Date(msg.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                                </span>
+                                            </div>
+                                            <p className="text-[10px] text-zinc-500 truncate italic font-medium">"{msg.content}"</p>
+                                        </div>
+                                    </div>
+                                ))
+                            )}
+                        </div>
+                    </section>
+
+                    {/* Team Management */}
+                    <section className="bg-[#0A0A0A] border border-[#1A1A1A] rounded-2xl p-8 shadow-2xl">
+                        <div className="flex items-center justify-between mb-8">
+                            <div>
+                                <h2 className="text-xs font-black uppercase tracking-[0.2em] text-zinc-400">Crew Manifest</h2>
+                                <p className="text-[9px] text-zinc-600 mt-1 uppercase font-bold tracking-widest italic">Authorization level: COMMAND_O1</p>
+                            </div>
+                            <Link href="/dashboard/team">
+                                <Button className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg text-[10px] font-black uppercase tracking-widest hover:bg-blue-500 shadow-lg shadow-blue-500/20">
+                                    <UserPlus className="w-4 h-4" />
+                                    ADD MEMBER
+                                </Button>
+                            </Link>
+                        </div>
+
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            {members.slice(0, 4).map((member) => (
+                                <div key={member.id} className="p-5 rounded-xl border border-[#1A1A1A] bg-white/[0.01] hover:border-blue-500/40 transition-all flex items-center gap-5 group">
+                                    {member.avatar ? (
+                                        <img
+                                            alt={member.name}
+                                            className="w-12 h-12 rounded-xl object-cover grayscale group-hover:grayscale-0 transition-all border border-zinc-800"
+                                            src={member.avatar}
+                                        />
+                                    ) : (
+                                        <div className="w-12 h-12 rounded-xl bg-zinc-800 flex items-center justify-center text-white border border-zinc-700 font-bold">
+                                            {member.name?.[0] || "?"}
+                                        </div>
+                                    )}
+                                    <div className="flex-1">
+                                        <div className="flex items-center gap-2 mb-1">
+                                            <h4 className="text-sm font-bold text-zinc-100 uppercase italic leading-none">{member.name}</h4>
+                                            <span className={cn(
+                                                "text-[7px] px-1.5 py-0.5 rounded font-black uppercase tracking-widest",
+                                                member.role === "owner" ? "bg-amber-500/10 text-amber-500" : "bg-blue-500/10 text-blue-500"
+                                            )}>
+                                                {member.role || "MEMBER"}
+                                            </span>
+                                        </div>
+                                        <p className="text-[9px] text-zinc-500 mb-2 font-bold uppercase tracking-tight italic opacity-60">{member.position || "CONSULTANT"}</p>
+                                        <div className="flex gap-1.5">
+                                            {(member.tags?.split(',') || ["CORE", "ENGINE"]).map((tag: string, i: number) => (
+                                                <span key={i} className="text-[7px] px-2 py-0.5 bg-zinc-900 border border-zinc-800 text-zinc-500 rounded-full font-black uppercase tracking-[0.1em]">
+                                                    {tag.trim()}
+                                                </span>
+                                            ))}
+                                        </div>
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    </section>
+                </div>
+
+                {/* Right Column - 4/12 */}
+                <div className="col-span-12 lg:col-span-4 space-y-8">
+                    {/* Stats Grid */}
+                    <div className="grid grid-cols-2 gap-4">
+                        <div className="bg-[#0A0A0A] border border-[#1A1A1A] rounded-2xl p-6 shadow-xl">
+                            <span className="text-[9px] font-black text-zinc-600 uppercase tracking-widest block mb-2">IO_LOAD</span>
+                            <div className="text-2xl font-black text-white italic leading-none">88%</div>
+                        </div>
+                        <div className="bg-[#0A0A0A] border border-[#1A1A1A] rounded-2xl p-6 shadow-xl border-l-[#3B82F6]">
+                            <span className="text-[9px] font-black text-blue-500 uppercase tracking-widest block mb-2">NODES</span>
+                            <div className="text-2xl font-black text-white italic leading-none">{tasks.length}</div>
+                        </div>
+                    </div>
+
+                    {/* Upcoming Deadlines */}
+                    <section className="bg-[#0A0A0A] border border-[#1A1A1A] rounded-2xl p-8 shadow-2xl relative">
+                        <h2 className="text-xs font-black uppercase tracking-[0.2em] text-zinc-400 mb-8">Temporal Deadlines</h2>
+
+                        <div className="space-y-8 relative before:absolute before:left-[11px] before:top-2 before:bottom-0 before:w-[1px] before:bg-zinc-900">
+                            {tasks.filter(t => t.dueDate).slice(0, 3).map((task, i) => (
+                                <div key={task.id} className="relative pl-10">
+                                    <span className={cn(
+                                        "absolute left-0 top-1.5 w-6 h-6 rounded-full bg-black border-2 flex items-center justify-center z-10",
+                                        i === 0 ? "border-red-500" : "border-blue-600"
+                                    )}>
+                                        <span className={cn(
+                                            "w-2 h-2 rounded-full",
+                                            i === 0 ? "bg-red-500" : "bg-blue-600 shadow-[0_0_8px_rgba(37,99,235,0.5)]"
+                                        )}></span>
+                                    </span>
+                                    <div className="space-y-1">
+                                        <div className="flex justify-between items-start">
+                                            <h4 className="text-[11px] font-black text-white uppercase tracking-tight italic">{task.title}</h4>
+                                            {i === 0 && <span className="text-[7px] font-black text-red-500 bg-red-500/10 px-1.5 py-0.5 rounded tracking-tighter">IMMINENT</span>}
+                                        </div>
+                                        <div className="flex items-center gap-2">
+                                            <Clock className="w-3 h-3 text-zinc-700" />
+                                            <p className="text-[10px] text-zinc-600 font-bold uppercase tracking-tight">
+                                                {new Date(task.dueDate).toLocaleDateString()} • {i === 0 ? "2H remaining" : "T-Minus 24H"}
+                                            </p>
+                                        </div>
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    </section>
+
+                    {/* Completed Tasks Widget - Placeholder with styling */}
+                    <section className="bg-[#0A0A0A] border border-[#1A1A1A] border-dashed rounded-2xl p-8 relative overflow-hidden">
+                        <div className="flex items-center justify-between mb-8">
+                            <h2 className="text-xs font-black uppercase tracking-[0.2em] text-zinc-500">History_Log</h2>
+                            <Check className="w-5 h-5 text-emerald-500/80" />
+                        </div>
+
+                        <div className="space-y-4">
+                            {[1, 2, 3].map(i => (
+                                <div key={i} className="flex gap-3 opacity-40 grayscale group">
+                                    <Check className="w-4 h-4 text-emerald-500 mt-1 shrink-0" />
+                                    <div>
+                                        <p className="text-xs text-zinc-400 font-bold uppercase tracking-tight italic line-through decoration-zinc-800">Operational node resolved</p>
+                                        <span className="text-[8px] text-zinc-700 font-black uppercase tracking-widest">Protocol 77-A Successful</span>
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+
+                        <div className="mt-8 text-center pt-6 border-t border-zinc-900">
+                            <span className="text-[9px] font-black text-zinc-700 uppercase tracking-[0.2em]">End of current stream</span>
+                        </div>
+                    </section>
                 </div>
             </div>
+
+            {/* Background Atmosphere */}
+            <div className="fixed -top-20 -right-20 w-[600px] h-[600px] bg-blue-600/5 blur-[140px] rounded-full pointer-events-none -z-10"></div>
+            <div className="fixed -bottom-20 -left-20 w-[400px] h-[400px] bg-indigo-600/5 blur-[120px] rounded-full pointer-events-none -z-10"></div>
         </div>
     );
 }

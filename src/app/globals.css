@@ -38,50 +38,59 @@
   --color-card-foreground: var(--card-foreground);
   --color-card: var(--card);
 
-  --radius-sm: 12px;
-  --radius-md: 18px;
-  --radius-lg: 24px;
-  --radius-xl: 32px;
-  --radius-2xl: 40px;
-  --radius-3xl: 48px;
-  --radius-4xl: 60px;
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 16px;
+  --radius-xl: 24px;
+  --radius-2xl: 32px;
+  --radius-3xl: 40px;
 }
 
 :root {
-  --radius: 32px;
-  --background: #050505;
-  --foreground: #ffffff;
-  --card: #0A0A0A;
-  --card-foreground: #ffffff;
-  --popover: #050505;
-  --popover-foreground: #ffffff;
-  --primary: #00d4aa;
-  --primary-foreground: #000000;
-  --secondary: #111111;
-  --secondary-foreground: #ffffff;
-  --muted: #111111;
-  --muted-foreground: #888888;
-  --accent: #111111;
-  --accent-foreground: #ffffff;
-  --destructive: #ff3333;
-  --border: #1a1a1a;
-  --input: #1a1a1a;
-  --ring: #00d4aa;
+  --radius: 12px;
 
-  --chart-1: #00d4aa;
-  --chart-2: #10b981;
-  --chart-3: #f59e0b;
-  --chart-4: #ef4444;
-  --chart-5: #8b5cf6;
+  /* UniWork Dark Theme - Pure Black & Blue */
+  --background: #000000;
+  --foreground: #ffffff;
+
+  --card: #0F0F10;
+  --card-foreground: #ffffff;
+
+  --popover: #0F0F10;
+  --popover-foreground: #ffffff;
+
+  --primary: #2F80ED;
+  --primary-foreground: #ffffff;
+
+  --secondary: #1A1A1A;
+  --secondary-foreground: #ffffff;
+
+  --muted: #1A1A1A;
+  --muted-foreground: #6B7280;
+
+  --accent: #1A1A1A;
+  --accent-foreground: #ffffff;
+
+  --destructive: #ef4444;
+
+  --border: #1F1F22;
+  --input: #1F1F22;
+  --ring: #2F80ED;
+
+  --chart-1: #2F80ED;
+  --chart-2: #10B981;
+  --chart-3: #F59E0B;
+  --chart-4: #EF4444;
+  --chart-5: #8B5CF6;
 
   --sidebar: #050505;
   --sidebar-foreground: #ffffff;
-  --sidebar-primary: #00d4aa;
-  --sidebar-primary-foreground: #000000;
-  --sidebar-accent: #111111;
+  --sidebar-primary: #2F80ED;
+  --sidebar-primary-foreground: #ffffff;
+  --sidebar-accent: #1A1A1A;
   --sidebar-accent-foreground: #ffffff;
-  --sidebar-border: #1a1a1a;
-  --sidebar-ring: #00d4aa;
+  --sidebar-border: #1F1F22;
+  --sidebar-ring: #2F80ED;
 }
 
 @layer base {
@@ -91,7 +100,7 @@
 
   body {
     @apply bg-background text-foreground selection:bg-primary/30 selection:text-primary antialiased;
-    font-feature-settings: "rlig" 1, "calt" 1, "cv05" 1, "cv08" 1;
+    font-feature-settings: "rlig" 1, "calt" 1;
   }
 }
 
@@ -100,31 +109,18 @@
     @apply bg-card/60 backdrop-blur-xl border border-white/[0.05];
   }
 
-  .glass-hover {
-    @apply hover:bg-white/[0.08] hover:border-white/[0.1] transition-all duration-300;
+  .card-dark {
+    @apply bg-card border border-border rounded-2xl;
   }
 
-  .neon-glow {
-    box-shadow: 0 0 20px rgba(0, 212, 170, 0.3);
-  }
-
-  .neural-card {
-    @apply bg-zinc-950/40 backdrop-blur-md border border-white/5 rounded-[40px] overflow-hidden transition-all duration-500 hover:border-primary/20 hover:bg-zinc-900/40;
-  }
-
-  .neural-input {
-    @apply bg-zinc-950/80 border border-white/5 rounded-2xl px-6 py-4 focus:ring-2 focus:ring-primary/50 focus:border-primary outline-none transition-all;
-  }
-
-  .neural-button {
-    @apply font-black italic tracking-tighter transition-all active:scale-[0.95] uppercase;
+  .stat-card {
+    @apply bg-[#0F0F10] border border-[#1F1F22] rounded-2xl p-6;
   }
 }
 
-/* Custom Scrollbar for Neural UI */
 ::-webkit-scrollbar {
-  width: 4px;
-  height: 4px;
+  width: 6px;
+  height: 6px;
 }
 
 ::-webkit-scrollbar-track {
@@ -132,22 +128,5 @@
 }
 
 ::-webkit-scrollbar-thumb {
-  @apply bg-primary/20 rounded-full hover:bg-primary/40 transition-colors;
-}
-
-@keyframes pulse-neon {
-
-  0%,
-  100% {
-    opacity: 0.8;
-  }
-
-  50% {
-    opacity: 1;
-    filter: brightness(1.2);
-  }
-}
-
-.animate-neon {
-  animation: pulse-neon 2s infinite ease-in-out;
+  @apply bg-zinc-800 rounded-full hover:bg-zinc-700 transition-colors;
 }

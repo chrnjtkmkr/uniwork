@@ -3,20 +3,16 @@
 import React, { useState, useEffect } from "react";
 import {
     Folder,
-    File,
+    File as FileIcon,
     FileText,
     Image as ImageIcon,
     FileCode,
     Upload,
-    Plus,
     Search,
     Grid,
     List,
-    MoreHorizontal,
     Cloud,
     ChevronRight,
-    HardDrive,
-    Clock,
     Download,
     Trash2,
     Share2,
@@ -26,8 +22,10 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
-import { getFiles, createFile, deleteFile } from "@/actions/files";
+import { getFiles, createFile, deleteFile, getStorageUsage, syncExternalFiles } from "@/actions/files";
 import { getFirstWorkspace } from "@/actions/workspaces";
+import { getIntegrations } from "@/actions/integrations";
+import { getCurrentUser } from "@/actions/auth";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 
@@ -37,55 +35,99 @@ const mockDrives = [
     { name: "S3 Node", status: "Staging", icon: "S3", color: "text-orange-500" },
 ];
 
+import { File as FileAsset, Workspace } from "@/types";
+
 export default function FilesPage() {
+    const [integrations, setIntegrations] = useState<any[]>([]);
+    const [currentUser, setCurrentUser] = useState<any>(null);
+    const [workspace, setWorkspace] = useState<any>(null);
+    const [activeDrive, setActiveDrive] = useState("all");
     const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
+    const [isSyncing, setIsSyncing] = useState(false);
+    const [isUploading, setIsUploading] = useState(false);
     const [files, setFiles] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
-    const [workspace, setWorkspace] = useState<any>(null);
-    const [isUploading, setIsUploading] = useState(false);
+    const [storageUsed, setStorageUsed] = useState(0);
+
+    const fetchFiles = async (wsId: string, drive: string = "all") => {
+        setLoading(true);
+        const result = await getFiles(wsId, drive);
+        if (result.success) {
+            setFiles(result.files || []);
+        }
+        const storageResult = await getStorageUsage(wsId);
+        if (storageResult.success) {
+            setStorageUsed(storageResult.totalBytes || 0);
+        }
+        setLoading(false);
+    };
 
     useEffect(() => {
         async function init() {
-            const ws = await getFirstWorkspace();
+            const [ws, user] = await Promise.all([
+                getFirstWorkspace(),
+                getCurrentUser()
+            ]);
+
             if (ws) {
                 setWorkspace(ws);
-                const result = await getFiles(ws.id);
-                if (result.success) {
-                    setFiles(result.files || []);
+                setCurrentUser(user);
+                await fetchFiles(ws.id, activeDrive);
+                const intRes = await getIntegrations(ws.id);
+                if (intRes.success) {
+                    setIntegrations(intRes.integrations || []);
                 }
             }
-            setLoading(false);
         }
         init();
-    }, []);
+    }, [activeDrive]);
 
-    const handleSimulateUpload = async () => {
-        if (!workspace) return;
-        setIsUploading(true);
-
-        const names = ["MISSION_PARAM_V2.pdf", "BASE_ASSET_L1.png", "NEURAL_SYNC_DATA.xlsx", "CORE_LOGIC_OPS.docx"];
-        const types = ["pdf", "image", "excel", "doc"];
-        const randIdx = Math.floor(Math.random() * names.length);
-
-        const result = await createFile({
-            name: names[randIdx],
-            size: Math.floor(Math.random() * 5000000) + 100000,
-            type: types[randIdx],
-            drive: "Local",
-            workspaceId: workspace.id
-        });
-
+    const handleSync = async (provider: string) => {
+        if (!workspace || !currentUser) return;
+        setIsSyncing(true);
+        const result = await syncExternalFiles(currentUser.id, workspace.id, provider);
         if (result.success) {
-            setFiles([result.file, ...files]);
-            toast.success("Binary stream synchronized.");
+            toast.success(`${provider.toUpperCase()} synchronization complete.`);
+            await fetchFiles(workspace.id, activeDrive);
+        } else {
+            toast.error(result.error || "Sync protocol interrupted.");
         }
-        setIsUploading(false);
+        setIsSyncing(false);
+    };
+
+    const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (!file || !workspace) return;
+
+        setIsUploading(true);
+        try {
+            const result = await createFile({
+                name: file.name,
+                size: file.size,
+                type: file.name.split('.').pop() || 'unknown',
+                source: "platform",
+                workspaceId: workspace.id,
+                ownerId: currentUser?.id || ""
+            });
+
+            if (result.success && result.file) {
+                setFiles([result.file, ...files]);
+                setStorageUsed(prev => prev + file.size);
+                toast.success(`${file.name} synchronized to node.`);
+            }
+        } catch (error) {
+            toast.error("Upload stream interrupted.");
+        } finally {
+            setIsUploading(false);
+        }
     };
 
     const handleDelete = async (id: string) => {
+        const fileToDelete = files.find(f => f.id === id);
         const result = await deleteFile(id);
         if (result.success) {
             setFiles(files.filter(f => f.id !== id));
+            if (fileToDelete) setStorageUsed(prev => prev - fileToDelete.size);
             toast.success("Node purged from universe.");
         }
     };
@@ -104,6 +146,9 @@ export default function FilesPage() {
         return (bytes / 1048576).toFixed(1) + ' MB';
     };
 
+    const limitInBytes = 10 * 1024 * 1024 * 1024; // 10GB
+    const storagePercentage = Math.min((storageUsed / limitInBytes) * 100, 100);
+
     return (
         <div className="space-y-12 animate-in fade-in slide-in-from-bottom-8 duration-700 pb-20">
             {/* Neural Header */}
@@ -120,14 +165,25 @@ export default function FilesPage() {
                             className="bg-white/5 border border-white/5 rounded-[28px] py-4 pl-14 pr-8 text-sm italic font-bold focus:outline-none focus:border-primary/50 transition-all w-72 shadow-2xl"
                         />
                     </div>
-                    <Button
-                        onClick={handleSimulateUpload}
-                        disabled={isUploading}
-                        className="bg-primary text-black hover:bg-primary/90 h-16 px-10 rounded-[32px] font-black italic tracking-tighter text-xl shadow-[0_0_20px_rgba(0,212,170,0.3)] transition-all uppercase group"
-                    >
-                        {isUploading ? <Loader2 className="w-6 h-6 animate-spin" /> : <Upload className="w-6 h-6 mr-3 group-hover:-translate-y-1 transition-transform" />}
-                        {isUploading ? "Streaming..." : "Upload Node"}
-                    </Button>
+                    <div className="relative">
+                        <input
+                            type="file"
+                            id="file-upload"
+                            className="hidden"
+                            onChange={handleFileUpload}
+                            disabled={isUploading}
+                        />
+                        <Button
+                            asChild
+                            disabled={isUploading}
+                            className="bg-primary text-black hover:bg-primary/90 h-16 px-10 rounded-[32px] font-black italic tracking-tighter text-xl shadow-[0_0_20px_rgba(0,212,170,0.3)] transition-all uppercase group cursor-pointer"
+                        >
+                            <label htmlFor="file-upload" className="flex items-center">
+                                {isUploading ? <Loader2 className="w-6 h-6 animate-spin" /> : <Upload className="w-6 h-6 mr-3 group-hover:-translate-y-1 transition-transform" />}
+                                {isUploading ? "Streaming..." : "Upload Node"}
+                            </label>
+                        </Button>
+                    </div>
                 </div>
             </div>
 
@@ -140,9 +196,9 @@ export default function FilesPage() {
                             Universe Capacity
                         </h3>
                         <div className="space-y-6 relative">
-                            <Progress value={20} className="h-4 bg-white/5 rounded-full overflow-hidden" />
+                            <Progress value={storagePercentage} className="h-4 bg-white/5 rounded-full overflow-hidden" />
                             <div className="flex justify-between text-[11px] font-black uppercase tracking-widest italic">
-                                <span className="text-muted-foreground">Used: 2.1 GB</span>
+                                <span className="text-muted-foreground">Used: {formatSize(storageUsed)}</span>
                                 <span className="text-primary">Limit: 10 GB</span>
                             </div>
                             <Button variant="outline" className="w-full text-xs h-12 border-primary/20 bg-primary/5 text-primary hover:bg-primary hover:text-black rounded-2xl transition-all font-black uppercase italic tracking-widest">Expansion Protocol</Button>
@@ -152,17 +208,62 @@ export default function FilesPage() {
                     <div className="space-y-4">
                         <h3 className="text-[10px] font-black uppercase tracking-[0.4em] text-muted-foreground mb-6 px-4 italic opacity-50">Authorized Hubs</h3>
                         <div className="space-y-3">
-                            {mockDrives.map(drive => (
-                                <button key={drive.name} className="w-full group flex items-center gap-4 p-5 rounded-[28px] hover:bg-white/5 transition-all text-left border border-transparent hover:border-white/5 group relative overflow-hidden">
-                                    <div className={cn("w-12 h-12 rounded-2xl bg-white/5 flex items-center justify-center font-black text-xs shadow-lg group-hover:scale-110 transition-transform", drive.color)}>{drive.icon}</div>
+                            <button
+                                onClick={() => setActiveDrive("all")}
+                                className={cn(
+                                    "w-full group flex items-center gap-4 p-5 rounded-[28px] transition-all text-left border",
+                                    activeDrive === "all" ? "bg-white/10 border-white/10" : "hover:bg-white/5 border-transparent"
+                                )}
+                            >
+                                <div className="w-12 h-12 rounded-2xl bg-white/5 flex items-center justify-center font-black text-xs text-primary shadow-lg">ALL</div>
+                                <div className="flex-1">
+                                    <p className="text-sm font-black italic tracking-tighter text-white">Universal Hub</p>
+                                    <p className="text-[10px] text-muted-foreground font-black uppercase tracking-widest opacity-50 mt-1">Aggregated View</p>
+                                </div>
+                                <ChevronRight className="w-4 h-4 text-muted-foreground" />
+                            </button>
+
+                            {integrations.filter(i => ['google', 'dropbox', 'onedrive'].includes(i.type)).map(integ => (
+                                <button
+                                    key={integ.id}
+                                    onClick={() => setActiveDrive(integ.type)}
+                                    className={cn(
+                                        "w-full group flex items-center gap-4 p-5 rounded-[28px] transition-all text-left border",
+                                        activeDrive === integ.type ? "bg-white/10 border-white/10" : "hover:bg-white/5 border-transparent"
+                                    )}
+                                >
+                                    <div className={cn("w-12 h-12 rounded-2xl bg-white/5 flex items-center justify-center font-black text-xs shadow-lg uppercase",
+                                        integ.type === 'google' ? 'text-blue-400' : 'text-primary'
+                                    )}>{integ.type.substring(0, 2)}</div>
                                     <div className="flex-1">
-                                        <p className="text-sm font-black italic tracking-tighter text-white">{drive.name}</p>
-                                        <p className="text-[10px] text-muted-foreground font-black uppercase tracking-widest opacity-50 mt-1">{drive.status}</p>
+                                        <div className="flex items-center gap-2">
+                                            <p className="text-sm font-black italic tracking-tighter text-white uppercase">{integ.type} Drive</p>
+                                            {integ.isActive && (
+                                                <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
+                                            )}
+                                        </div>
+                                        <p className="text-[10px] text-muted-foreground font-black uppercase tracking-widest opacity-50 mt-1">
+                                            {integ.isActive ? 'Linked' : 'Offline'}
+                                        </p>
                                     </div>
-                                    <ChevronRight className="w-4 h-4 text-muted-foreground group-hover:text-primary transition-colors" />
+                                    {isSyncing ? (
+                                        <Loader2 className="w-4 h-4 text-primary animate-spin" />
+                                    ) : (
+                                        <Cloud
+                                            className="w-4 h-4 text-muted-foreground hover:text-primary transition-colors cursor-pointer"
+                                            onClick={(e) => { e.stopPropagation(); handleSync(integ.type); }}
+                                        />
+                                    )}
                                 </button>
                             ))}
                         </div>
+                        <Button
+                            variant="ghost"
+                            className="w-full mt-4 h-14 rounded-2xl border border-dashed border-white/10 text-muted-foreground hover:text-white font-bold italic tracking-tighter uppercase text-xs"
+                            onClick={() => window.location.href = '/dashboard/integrations'}
+                        >
+                            Connect Drive Signal
+                        </Button>
                     </div>
                 </div>
 
@@ -227,7 +328,7 @@ export default function FilesPage() {
                                                 <div className="flex items-center gap-4 text-[10px] font-black uppercase tracking-widest text-muted-foreground opacity-50 italic">
                                                     <span>{formatSize(file.size)}</span>
                                                     <div className="w-1.5 h-1.5 rounded-full bg-primary/40" />
-                                                    <span className="flex items-center gap-1.5"><Cloud className="w-4 h-4" /> {file.drive}</span>
+                                                    <span className="flex items-center gap-1.5 uppercase"><Cloud className="w-4 h-4" /> {file.source}</span>
                                                 </div>
                                             </CardContent>
                                             <div className="px-10 py-6 bg-white/[0.04] border-t border-white/5 flex items-center justify-between translate-y-4 opacity-0 group-hover:translate-y-0 group-hover:opacity-100 transition-all duration-500">
@@ -292,7 +393,7 @@ export default function FilesPage() {
                     )}
                 </div>
             </div>
-        </div>
+        </div >
     );
 }
 
@@ -303,7 +404,7 @@ function getFileIcon(type: string, className = "w-8 h-8") {
         case 'archive': case 'zip': return <Folder className={className} />;
         case 'video': case 'mp4': return <FileText className={className} />;
         case 'code': case 'js': case 'json': return <FileCode className={className} />;
-        case 'excel': case 'xlsx': return <File className={className} />;
-        default: return <File className={className} />;
+        case 'excel': case 'xlsx': return <FileIcon className={className} />;
+        default: return <FileIcon className={className} />;
     }
 }

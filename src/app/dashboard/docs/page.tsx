@@ -1,299 +1,431 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import {
     FileText,
-    Folder,
+    Star,
+    Archive,
+    Trash2,
     Plus,
     Search,
-    Clock,
-    ChevronRight,
-    History,
+    Bell,
+    Cloud,
     Share2,
-    Edit3,
-    Eye,
+    Sparkles,
+    Bold,
+    Italic,
+    List,
+    X,
     Loader2,
-    Save,
-    Sparkles as SparklesIcon,
-    ArrowRight,
-    StickyNote,
-    UploadCloud,
-    Download,
-    MoreVertical,
-    Zap
+    CheckCircle2,
+    Terminal,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { ScrollArea } from "@/components/ui/scroll-area";
-import ReactMarkdown from 'react-markdown';
-import { getDocs, updateDoc, createDoc } from "@/actions/docs";
-import { getFirstWorkspace, getMockUser } from "@/actions/workspaces";
+import { createClient } from "@/lib/supabase";
 import {
-    Dialog,
-    DialogContent,
-    DialogHeader,
-    DialogTitle,
-    DialogTrigger,
-} from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input";
+    getDocuments,
+} from "@/actions/workspaces";
+import {
+    createDoc,
+    updateDoc,
+    deleteDoc,
+    getDocumentHistory,
+} from "@/actions/docs";
+import {
+    getMockUser,
+    getFirstWorkspace,
+} from "@/actions/workspaces";
+import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 
-export default function NotesPage() {
+// Custom debounce implementation to avoid external dependencies
+function debounce<T extends (...args: any[]) => any>(func: T, wait: number) {
+    let timeout: NodeJS.Timeout;
+    return (...args: Parameters<T>) => {
+        clearTimeout(timeout);
+        timeout = setTimeout(() => func(...args), wait);
+    };
+}
+
+const NotesPage = () => {
     const [docs, setDocs] = useState<any[]>([]);
     const [selectedDoc, setSelectedDoc] = useState<any>(null);
-    const [isEditing, setIsEditing] = useState(false);
-    const [content, setContent] = useState("");
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
-    const [isGenerating, setIsGenerating] = useState(false);
-
-    // Create doc state
-    const [newTitle, setNewTitle] = useState("");
-    const [isCreateOpen, setIsCreateOpen] = useState(false);
-
     const [workspace, setWorkspace] = useState<any>(null);
     const [user, setUser] = useState<any>(null);
+    const [searchQuery, setSearchQuery] = useState("");
+
+    // Editor state
+    const [title, setTitle] = useState("");
+    const [content, setContent] = useState("");
 
     useEffect(() => {
-        async function init() {
+        const init = async () => {
             const ws = await getFirstWorkspace();
             const me = await getMockUser();
+            setWorkspace(ws);
+            setUser(me);
             if (ws) {
-                setWorkspace(ws);
-                setUser(me);
-                const result = await getDocs(ws.id);
-                if (result.success) {
-                    setDocs(result.docs || []);
-                    if (result.docs && result.docs.length > 0) {
+                const result = await getDocuments(ws.id);
+                if (result.success && result.docs) {
+                    setDocs(result.docs);
+                    if (result.docs.length > 0) {
                         setSelectedDoc(result.docs[0]);
+                        setTitle(result.docs[0].title);
                         setContent(result.docs[0].content || "");
                     }
                 }
             }
             setLoading(false);
-        }
+        };
         init();
     }, []);
 
-    const handleDocSelect = (doc: any) => {
-        setSelectedDoc(doc);
-        setContent(doc.content || "");
-        setIsEditing(false);
+    useEffect(() => {
+        if (!workspace) return;
+
+        const supabase = createClient();
+        const channel = supabase
+            .channel('docs-realtime')
+            .on(
+                'postgres_changes',
+                {
+                    event: '*',
+                    schema: 'public',
+                    table: 'Document',
+                    filter: `workspaceId=eq.${workspace.id}`,
+                },
+                () => {
+                    fetchDocs();
+                }
+            )
+            .subscribe();
+
+        return () => {
+            supabase.removeChannel(channel);
+        };
+    }, [workspace]);
+
+    const fetchDocs = async () => {
+        if (workspace) {
+            const result = await getDocuments(workspace.id);
+            if (result.success && result.docs) {
+                setDocs(result.docs);
+            }
+        }
     };
 
-    const handleSave = async () => {
-        if (!selectedDoc) return;
-        setSaving(true);
-        const result = await updateDoc(selectedDoc.id, content);
-        if (result.success) {
-            setDocs(prev => prev.map(d => d.id === selectedDoc.id ? result.doc : d));
-            setSelectedDoc(result.doc);
+    // Debounced save function
+    const debouncedSave = useCallback(
+        debounce(async (docId: string, newTitle: string, newContent: string) => {
+            setSaving(true);
+            try {
+                await updateDoc(docId, { title: newTitle, content: newContent });
+                setSaving(false);
+                // Update local docs list without full refresh
+                setDocs(prev => prev.map(d => d.id === docId ? { ...d, title: newTitle, updatedAt: new Date() } : d));
+            } catch (error) {
+                toast.error("Cloud sync failed");
+                setSaving(false);
+            }
+        }, 1000),
+        []
+    );
+
+    const handleContentChange = (newContent: string) => {
+        setContent(newContent);
+        if (selectedDoc) {
+            debouncedSave(selectedDoc.id, title, newContent);
         }
-        setSaving(false);
-        setIsEditing(false);
+    };
+
+    const handleTitleChange = (newTitle: string) => {
+        setTitle(newTitle);
+        if (selectedDoc) {
+            debouncedSave(selectedDoc.id, newTitle, content);
+        }
     };
 
     const handleCreateDoc = async () => {
-        if (!newTitle || !workspace || !user) return;
-        setLoading(true);
-        const result = await createDoc({
-            title: newTitle,
-            workspaceId: workspace.id,
-            authorId: user.id
-        });
-        if (result.success && result.doc) {
-            setDocs([result.doc, ...docs]);
-            setSelectedDoc(result.doc);
-            setContent(result.doc.content || "");
-            setIsCreateOpen(false);
-            setNewTitle("");
+        if (!workspace || !user) return;
+
+        try {
+            const result = await createDoc({
+                title: "UNTITLED_NODE",
+                workspaceId: workspace.id,
+                authorId: user.id,
+            });
+
+            if (result.success && result.doc) {
+                toast.success("Neural node created");
+                setDocs(prev => [result.doc, ...prev]);
+                setSelectedDoc(result.doc);
+                setTitle(result.doc.title);
+                setContent(result.doc.content || "");
+            } else {
+                toast.error("Failed to create node");
+            }
+        } catch (error) {
+            toast.error("An error occurred");
         }
-        setLoading(false);
     };
 
-    const handleAIAssist = async () => {
+    const handleDeleteDoc = async () => {
         if (!selectedDoc) return;
-        setIsGenerating(true);
-        setIsEditing(true);
+        if (!confirm("Are you sure you want to delete this document?")) return;
 
-        const aiPrompt = `### [NEURAL_EXPANSION_PROTOCOL_ACTIVE] Searching logic nodes...`;
-        setContent(prev => prev + "\n\n" + aiPrompt);
-
-        setTimeout(() => {
-            const generatedText = `\n\n### Strategic Node Expansion (AI)\n\n**Logic Parameters**:\n- **Scale**: Horizontal mapping of communication clusters.\n- **Depth**: Deep-logic validation across all active links.\n- **Throughput**: Optimized data streaming for millisecond synchronization.\n\n*Drafted via Neural Sync Protocol v4.2.*`;
-            setContent(prev => prev.replace(aiPrompt, "") + generatedText);
-            setIsGenerating(false);
-        }, 2000);
+        try {
+            const result = await deleteDoc(selectedDoc.id);
+            if (result.success) {
+                toast.success("Document deleted");
+                const remaining = docs.filter(d => d.id !== selectedDoc.id);
+                setDocs(remaining);
+                if (remaining.length > 0) {
+                    setSelectedDoc(remaining[0]);
+                    setTitle(remaining[0].title);
+                    setContent(remaining[0].content || "");
+                } else {
+                    setSelectedDoc(null);
+                    setTitle("");
+                    setContent("");
+                }
+            } else {
+                toast.error("Deletion failed");
+            }
+        } catch (error) {
+            toast.error("An error occurred");
+        }
     };
 
-    if (loading && docs.length === 0) {
+    const filteredDocs = docs.filter(d =>
+        d.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        d.content.toLowerCase().includes(searchQuery.toLowerCase())
+    );
+
+    if (loading) {
         return (
-            <div className="flex items-center justify-center h-[70vh]">
-                <Loader2 className="w-12 h-12 text-primary animate-spin" />
+            <div className="flex items-center justify-center h-full bg-[#050505] text-[#38bdf8]">
+                <Loader2 className="w-12 h-12 animate-spin" />
             </div>
         );
     }
 
     return (
-        <div className="flex h-[calc(100vh-200px)] gap-12 animate-in fade-in slide-in-from-right-12 duration-700">
-            {/* Neural Sidebar */}
-            <div className="w-[400px] flex flex-col gap-10">
-                <div className="flex items-center justify-between px-2">
-                    <h1 className="text-5xl font-black tracking-tighter uppercase italic text-white underline decoration-primary/50 decoration-4 underline-offset-8">Liquid <span className="text-primary italic animate-neon">Notes</span></h1>
-                    <Dialog open={isCreateOpen} onOpenChange={setIsCreateOpen}>
-                        <DialogTrigger asChild>
-                            <Button className="w-16 h-16 rounded-[24px] bg-primary text-black hover:bg-primary/90 shadow-[0_0_20px_rgba(0,212,170,0.3)] transition-all">
-                                <Plus className="w-8 h-8 font-black" />
-                            </Button>
-                        </DialogTrigger>
-                        <DialogContent className="glass border-white/10 text-white rounded-[40px] p-12 max-w-lg animate-in zoom-in-95 duration-500">
-                            <DialogHeader>
-                                <DialogTitle className="text-3xl font-black tracking-tighter uppercase italic">New <span className="text-primary italic">Node</span></DialogTitle>
-                            </DialogHeader>
-                            <div className="space-y-10 pt-10">
-                                <div className="space-y-4">
-                                    <label className="text-[12px] font-black uppercase tracking-[0.3em] text-muted-foreground ml-2">Stream Title</label>
-                                    <Input
-                                        placeholder="EX: CORE LOGIC DRAFT"
-                                        value={newTitle}
-                                        onChange={e => setNewTitle(e.target.value)}
-                                        className="bg-white/5 border-white/5 h-16 rounded-[24px] text-xl font-black italic px-8 focus:border-primary/50"
-                                    />
-                                </div>
-                                <Button onClick={handleCreateDoc} className="w-full h-20 bg-primary text-black hover:bg-primary/90 rounded-[28px] font-black italic text-xl tracking-tighter transition-all uppercase">
-                                    Initialize Stream <ArrowRight className="w-6 h-6 ml-4" />
-                                </Button>
-                            </div>
-                        </DialogContent>
-                    </Dialog>
+        <div className="flex h-full overflow-hidden bg-background">
+            {/* Notes List Side Panel */}
+            <aside className="w-80 flex flex-col border-r border-[#151515] bg-[#0A0A0A] overflow-hidden">
+                {/* Panel Header */}
+                <div className="h-16 px-6 border-b border-[#151515] flex items-center justify-between bg-[#0A0A0A]/50 backdrop-blur-md">
+                    <div className="flex items-center gap-3">
+                        <div className="w-8 h-8 bg-[#38bdf8] rounded-lg flex items-center justify-center shadow-[0_0_15px_rgba(56,189,248,0.4)]">
+                            <FileText className="w-5 h-5 text-black" />
+                        </div>
+                        <h2 className="font-bold text-sm tracking-tight uppercase text-white" style={{ fontFamily: "'Space Grotesk', sans-serif" }}>
+                            Neural_Docs
+                        </h2>
+                    </div>
+                    <Button
+                        onClick={handleCreateDoc}
+                        className="flex items-center gap-2 px-3 py-1.5 bg-[#38bdf8] text-black text-xs font-bold rounded-lg shadow-[0_0_10px_rgba(56,189,248,0.3)] hover:opacity-90"
+                    >
+                        <Plus className="w-4 h-4" />
+                        New
+                    </Button>
                 </div>
 
-                <div className="relative group px-1">
-                    <Search className="absolute left-6 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground group-focus-within:text-primary transition-colors" />
-                    <input
-                        placeholder="SEARCH DATA CLUSTERS..."
-                        className="bg-white/5 border border-white/5 rounded-[28px] py-5 pl-16 pr-8 text-sm italic font-bold w-full focus:outline-none focus:border-primary/50 transition-all shadow-xl placeholder:opacity-30"
-                    />
-                </div>
-
-                <ScrollArea className="flex-1 bg-white/[0.02] border border-white/10 rounded-[48px] p-6 shadow-inner">
-                    <div className="space-y-10">
-                        <div>
-                            <p className="text-[12px] font-black uppercase tracking-[0.3em] text-muted-foreground mb-6 px-4 italic opacity-50">Active Streams</p>
-                            <div className="space-y-4">
-                                {docs.map(doc => (
-                                    <button
-                                        key={doc.id}
-                                        onClick={() => handleDocSelect(doc)}
-                                        className={cn(
-                                            "w-full flex flex-col gap-4 p-8 rounded-[32px] text-left transition-all relative group overflow-hidden border",
-                                            selectedDoc?.id === doc.id
-                                                ? 'bg-primary/10 border-primary/30 shadow-[inset_0_0_20px_rgba(0,212,170,0.1)]'
-                                                : 'hover:bg-white/5 border-transparent'
-                                        )}
-                                    >
-                                        {selectedDoc?.id === doc.id && <div className="absolute left-0 top-0 w-2 h-full bg-primary shadow-[0_0_15px_rgba(0,212,170,1)]" />}
-                                        <div className="flex items-center gap-4">
-                                            <StickyNote className={cn("w-6 h-6", selectedDoc?.id === doc.id ? 'text-primary' : 'text-muted-foreground')} />
-                                            <span className={cn("text-xl font-black italic tracking-tighter truncate", selectedDoc?.id === doc.id ? 'text-white' : 'text-muted-foreground group-hover:text-white')}>
-                                                {doc.title}
-                                            </span>
-                                        </div>
-                                        <div className="flex items-center justify-between pl-10">
-                                            <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground opacity-50 italic">
-                                                {new Date(doc.updatedAt).toLocaleDateString([], { month: 'short', day: 'numeric' })}
-                                            </p>
-                                            <div className="flex gap-2">
-                                                <div className="w-1.5 h-1.5 rounded-full bg-primary/40" />
-                                                <div className="w-1.5 h-1.5 rounded-full bg-primary/20" />
-                                            </div>
-                                        </div>
-                                    </button>
-                                ))}
-                            </div>
+                {/* Quick Actions */}
+                <div className="px-4 py-3 border-b border-[#151515]">
+                    <div className="flex items-center gap-2 mb-3">
+                        <div className="relative flex-1">
+                            <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-500 w-3.5 h-3.5" />
+                            <input
+                                className="w-full bg-[#121212] border border-[#1A1A1A] rounded-lg pl-8 pr-3 py-1.5 text-xs focus:ring-1 focus:ring-[#38bdf8] transition-all text-white placeholder:text-slate-600 outline-none"
+                                placeholder="Search neural entries..."
+                                type="text"
+                                value={searchQuery}
+                                onChange={(e) => setSearchQuery(e.target.value)}
+                            />
                         </div>
                     </div>
-                </ScrollArea>
-            </div>
 
-            {/* Neural Editor */}
-            <div className="flex-1 glass border-white/5 rounded-[60px] flex flex-col overflow-hidden relative shadow-2xl">
+                    {/* Filter Tabs */}
+                    <div className="flex gap-2 text-[10px]">
+                        <button className="px-2 py-1 bg-[#38bdf8]/10 text-[#38bdf8] rounded font-bold uppercase">All_Nodes</button>
+                        <button className="px-2 py-1 text-slate-500 hover:text-slate-300 rounded font-bold uppercase">Starred</button>
+                    </div>
+                </div>
+
+                {/* Notes List */}
+                <div className="flex-1 overflow-y-auto px-4 py-4 space-y-3">
+                    {filteredDocs.length === 0 ? (
+                        <div className="flex flex-col items-center justify-center h-40 opacity-20 italic">
+                            <p className="text-[10px] uppercase tracking-widest text-white">No entries found</p>
+                        </div>
+                    ) : (
+                        filteredDocs.map((doc) => (
+                            <div
+                                key={doc.id}
+                                onClick={() => {
+                                    setSelectedDoc(doc);
+                                    setTitle(doc.title);
+                                    setContent(doc.content || "");
+                                }}
+                                className={cn(
+                                    "p-4 rounded-xl transition-all cursor-pointer relative group border shadow-lg",
+                                    selectedDoc?.id === doc.id
+                                        ? "bg-[#121212] border-[#38bdf8]/50"
+                                        : "bg-transparent border-transparent hover:border-[#38bdf8]/20"
+                                )}
+                            >
+                                <div className="flex items-start justify-between mb-2">
+                                    <div className="flex items-center gap-2 overflow-hidden">
+                                        <div className={cn(
+                                            "w-1.5 h-1.5 rounded-full",
+                                            selectedDoc?.id === doc.id ? "bg-[#38bdf8]" : "bg-slate-700"
+                                        )}></div>
+                                        <h3 className={cn(
+                                            "text-sm font-bold truncate",
+                                            selectedDoc?.id === doc.id ? "text-white" : "text-slate-400"
+                                        )}>
+                                            {doc.title}
+                                        </h3>
+                                    </div>
+                                    {selectedDoc?.id === doc.id && (
+                                        <span className="text-[8px] text-[#38bdf8] font-bold bg-[#38bdf8]/10 px-1.5 py-0.5 rounded tracking-tighter">ACTIVE</span>
+                                    )}
+                                </div>
+                                <p className="text-[11px] text-slate-500 line-clamp-2 mb-2 italic">
+                                    {doc.content || "Empty terminal data..."}
+                                </p>
+                                <div className="flex items-center justify-between">
+                                    <span className="text-[9px] text-slate-600 font-bold uppercase tracking-tighter">
+                                        {new Date(doc.updatedAt).toLocaleDateString()}
+                                    </span>
+                                    <div className="flex gap-2">
+                                        <Star className="w-3 h-3 text-slate-700 hover:text-yellow-500 cursor-pointer" />
+                                        <Share2 className="w-3 h-3 text-slate-700 hover:text-[#38bdf8] cursor-pointer" />
+                                    </div>
+                                </div>
+                            </div>
+                        ))
+                    )}
+                </div>
+            </aside>
+
+            {/* Main Editor Area */}
+            <main className="flex-1 flex flex-col overflow-hidden relative bg-[#050505]">
                 {selectedDoc ? (
                     <>
-                        <div className="h-28 border-b border-white/5 flex items-center justify-between px-12 bg-white/[0.02]">
-                            <div className="flex items-center gap-8">
-                                <div className="w-16 h-16 rounded-[24px] bg-white/5 flex items-center justify-center border border-white/5">
-                                    <StickyNote className="w-8 h-8 text-primary" />
-                                </div>
-                                <div>
-                                    <h2 className="text-3xl font-black italic tracking-tighter text-white uppercase">{selectedDoc.title}</h2>
-                                    <p className="text-[12px] font-black uppercase tracking-[0.3em] text-primary animate-pulse italic">Neural Sync Active</p>
+                        {/* Editor Header */}
+                        <header className="h-16 px-8 border-b border-[#151515] flex items-center justify-between bg-[#0A0A0A]/30 backdrop-blur-md">
+                            <div className="flex items-center gap-4 flex-1">
+                                <FileText className="w-5 h-5 text-[#38bdf8]" />
+                                <input
+                                    className="bg-transparent border-none focus:ring-0 text-xl font-bold tracking-tight text-white uppercase italic outline-none w-full"
+                                    style={{ fontFamily: "'Space Grotesk', sans-serif" }}
+                                    value={title}
+                                    onChange={(e) => handleTitleChange(e.target.value)}
+                                    placeholder="NODE_DESIGNATION"
+                                />
+                                <div className="flex items-center gap-2 px-3 py-1 bg-white/5 rounded-full border border-white/10 shrink-0">
+                                    {saving ? (
+                                        <>
+                                            <Loader2 className="w-3 h-3 text-[#38bdf8] animate-spin" />
+                                            <span className="text-[9px] text-[#38bdf8] font-bold uppercase tracking-widest">Syncing</span>
+                                        </>
+                                    ) : (
+                                        <>
+                                            <CheckCircle2 className="w-3 h-3 text-green-500" />
+                                            <span className="text-[9px] text-slate-400 font-bold uppercase tracking-widest">Synced</span>
+                                        </>
+                                    )}
                                 </div>
                             </div>
 
-                            <div className="flex items-center gap-6">
-                                {isEditing ? (
-                                    <Button
-                                        size="lg"
-                                        onClick={handleSave}
-                                        disabled={saving}
-                                        className="bg-primary text-black hover:bg-primary/90 rounded-2xl px-10 font-black italic text-sm tracking-tighter uppercase"
-                                    >
-                                        {saving ? <Loader2 className="w-5 h-5 animate-spin mr-3" /> : <Save className="w-5 h-5 mr-3" />}
-                                        Commit
-                                    </Button>
-                                ) : (
-                                    <Button
-                                        variant="outline"
-                                        size="lg"
-                                        onClick={() => setIsEditing(true)}
-                                        className="rounded-2xl bg-white/5 border-primary/20 text-primary hover:bg-primary hover:text-black px-10 font-black italic text-sm tracking-tighter uppercase transition-transform active:scale-95"
-                                    >
-                                        <Edit3 className="w-5 h-5 mr-3" /> Modify
-                                    </Button>
-                                )}
-                                <Button variant="ghost" size="icon" className="w-14 h-14 rounded-2xl hover:bg-white/5 border border-white/5">
-                                    <Share2 className="w-6 h-6 text-muted-foreground" />
+                            <div className="flex items-center gap-3 shrink-0 ml-4">
+                                <div className="flex items-center gap-2 text-[10px] text-slate-600 font-bold uppercase tracking-tighter italic">
+                                    Last modulation: {new Date(selectedDoc.updatedAt).toLocaleTimeString()}
+                                </div>
+                                <div className="h-4 w-px bg-border-dark"></div>
+                                <button className="w-8 h-8 flex items-center justify-center text-slate-600 hover:text-[#38bdf8]">
+                                    <Bell className="w-4 h-4" />
+                                </button>
+                                <button className="w-8 h-8 flex items-center justify-center text-slate-600 hover:text-[#38bdf8]">
+                                    <Cloud className="w-4 h-4" />
+                                </button>
+                            </div>
+                        </header>
+
+                        {/* Editor Toolbar */}
+                        <div className="h-14 px-6 border-b border-[#151515] flex items-center justify-between bg-[#080808]/50">
+                            <div className="flex items-center gap-3">
+                                <div className="flex items-center gap-1 bg-white/5 p-1 rounded-lg">
+                                    <button className="p-2 hover:bg-white/5 rounded transition-colors text-slate-400">
+                                        <Bold className="w-4 h-4" />
+                                    </button>
+                                    <button className="p-2 hover:bg-white/5 rounded transition-colors text-slate-400">
+                                        <Italic className="w-4 h-4" />
+                                    </button>
+                                    <button className="p-2 hover:bg-white/5 rounded transition-colors text-slate-400">
+                                        <List className="w-4 h-4" />
+                                    </button>
+                                </div>
+                            </div>
+
+                            <div className="flex items-center gap-3">
+                                <button
+                                    onClick={handleDeleteDoc}
+                                    className="p-2 hover:bg-red-500/10 hover:text-red-400 text-slate-600 rounded-lg transition-all"
+                                >
+                                    <Trash2 className="w-4 h-4" />
+                                </button>
+                                <Button className="flex items-center gap-2 px-5 py-2 bg-[#38bdf8] text-black rounded-lg text-[10px] font-black uppercase tracking-widest hover:opacity-90 shadow-[0_0_15px_rgba(56,189,248,0.3)]">
+                                    <Share2 className="w-4 h-4" /> Share_Node
                                 </Button>
                             </div>
                         </div>
 
-                        <ScrollArea className="flex-1 p-20">
-                            <div className="max-w-5xl mx-auto">
-                                {isEditing ? (
-                                    <textarea
-                                        value={content}
-                                        onChange={(e) => setContent(e.target.value)}
-                                        className="w-full h-[700px] bg-transparent border-none focus:ring-0 text-2xl font-black italic tracking-tighter leading-relaxed resize-none text-white placeholder:opacity-10 selection:bg-primary/30"
-                                        spellCheck={false}
-                                        placeholder="INPUT LOGIC DATA..."
-                                    />
-                                ) : (
-                                    <div className="markdown-content prose prose-invert prose-primary max-w-none text-xl font-bold italic tracking-tight leading-relaxed text-muted-foreground selection:bg-primary/20">
-                                        <ReactMarkdown>{content}</ReactMarkdown>
-                                    </div>
-                                )}
+                        {/* Editor Content */}
+                        <div className="flex-1 overflow-y-auto p-12 bg-black/50">
+                            <div className="max-w-4xl mx-auto">
+                                <textarea
+                                    className="w-full min-h-[70vh] bg-transparent border-none focus:ring-0 text-slate-300 leading-relaxed font-medium outline-none resize-none placeholder:text-slate-800 placeholder:italic"
+                                    placeholder="Inject neural data packets here..."
+                                    value={content}
+                                    onChange={(e) => handleContentChange(e.target.value)}
+                                />
                             </div>
-                        </ScrollArea>
+                        </div>
                     </>
                 ) : (
-                    <div className="flex-1 flex flex-col items-center justify-center text-muted-foreground p-24 text-center">
-                        <Zap className="w-24 h-24 opacity-5 mb-10 animate-pulse" />
-                        <h2 className="text-4xl font-black tracking-tighter uppercase italic text-white/50">Node Idle</h2>
-                        <p className="max-w-md mx-auto text-lg italic mt-4 opacity-40">Initialize a logic stream or select an active data cluster to commence synchronization.</p>
+                    <div className="flex flex-col items-center justify-center h-full space-y-6 opacity-20 grayscale">
+                        <Terminal className="w-20 h-20 text-white" />
+                        <div className="text-center">
+                            <p className="text-sm font-black uppercase tracking-[0.5em] text-white">No Direct Connection</p>
+                            <p className="text-[10px] uppercase font-bold tracking-widest mt-2 text-blue-500">Initiate new node to begin modulation</p>
+                        </div>
+                        <Button
+                            onClick={handleCreateDoc}
+                            className="bg-[#38bdf8] text-black font-black uppercase tracking-widest px-8"
+                        >
+                            Start New Session
+                        </Button>
                     </div>
                 )}
 
-                {selectedDoc && !isGenerating && (
-                    <Button
-                        onClick={handleAIAssist}
-                        className="absolute bottom-12 right-12 w-20 h-20 rounded-[32px] bg-primary text-black shadow-[0_0_30px_rgba(0,212,170,0.5)] hover:scale-110 active:scale-90 transition-all z-20 group overflow-hidden"
-                    >
-                        <div className="absolute inset-0 bg-white/20 -translate-x-full group-hover:translate-x-full transition-transform duration-1000 slide-in-from-left" />
-                        {isGenerating ? <Loader2 className="w-10 h-10 animate-spin" /> : <SparklesIcon className="w-10 h-10" />}
-                    </Button>
-                )}
-            </div>
+                {/* AI Sparkle Button */}
+                <button className="absolute bottom-8 right-8 w-14 h-14 bg-[#38bdf8] text-black rounded-2xl shadow-[0_0_25px_rgba(56,189,248,0.5)] flex items-center justify-center hover:scale-110 transition-transform group overflow-hidden">
+                    <div className="absolute inset-0 bg-white/20 opacity-0 group-hover:opacity-100 transition-opacity"></div>
+                    <Sparkles className="w-7 h-7 font-bold" />
+                </button>
+            </main>
+
+            {/* Background Glows */}
+            <div className="fixed top-0 right-0 w-[500px] h-[500px] bg-[#38bdf8]/5 blur-[120px] rounded-full -z-10 pointer-events-none"></div>
+            <div className="fixed bottom-0 left-0 w-[300px] h-[300px] bg-blue-900/5 blur-[100px] rounded-full -z-10 pointer-events-none"></div>
         </div>
     );
-}
+};
+
+export default NotesPage;
